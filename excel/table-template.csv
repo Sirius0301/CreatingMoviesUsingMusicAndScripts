@@ -1,0 +1,11 @@
+ActionName,Type,Rhythms,MainHint,SubHint,IsPreview,NextActionName,RhythmAlert
+热身,2,4,关节活动,准备开始,FALSE,,FALSE
+热身,2,4,提升心率,加快节奏,TRUE,深蹲,TRUE
+深蹲,4,4,双脚开立,与肩同宽,FALSE,,FALSE
+深蹲,4,4,臀部后坐,膝盖对准脚尖,FALSE,,FALSE
+深蹲,4,4,核心收紧,背部挺直,FALSE,,FALSE
+深蹲,4,4,准备进阶,有变化,TRUE,弓步蹲,TRUE
+弓步蹲,4,4,右腿向后,大步迈出,FALSE,,FALSE
+弓步蹲,4,4,膝盖弯曲,90度角,FALSE,,FALSE
+弓步蹲,4,4,推地站起,臀部发力,FALSE,,FALSE
+弓步蹲,4,4,即将完成,最后冲刺,TRUE,拉伸放松,FALSE

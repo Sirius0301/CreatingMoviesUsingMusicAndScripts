@@ -1,0 +1,64 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+temp-audio.m4a
+
+# Excel files (user should add their own)
+excel/**/*.xlsx
+excel/**/*.csv
+!excel/.gitkeep
+!excel/table-template.xlsx
+!excel/table-template.csv
+
+# Music files (user should add their own)
+music/**/*.mp3
+music/**/*.wav
+music/**/*.m4a
+music/**/*.flac
+!music/**/.gitkeep
+
+# Output videos (generated files)
+output/**/*.mp4
+output/**/*.mov
+output/**/*.avi
+!output/**/.gitkeep
