@@ -28,13 +28,13 @@ BATCH_CONFIGS = [
     },
     {
         "music": "music/buttScaler23/06 06 Lose Control.mp3",
-        "excel": "excel/butterScaler/butterScaler23.xlsx",
+        "excel": "excel/butterScaler/butterScaler23-Section06.xlsx",
         "output": "butterScaler23_Section06_iPad.mp4"
     },
 ]
 
 DEFAULT_MUSIC_PATH = "music/buttScaler23/06 06 Lose Control.mp3"
-DEFAULT_EXCEL_PATH = "excel/butterScaler/butterScaler23.xlsx"
+DEFAULT_EXCEL_PATH = "excel/butterScaler/butterScaler23-Section06.xlsx"
 OUTPUT_DIR = "output/buttScaler23"
 FONT_PATH = "fonts/SourceHanSansHWSC-Bold.otf"
 
