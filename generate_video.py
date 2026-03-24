@@ -94,10 +94,11 @@ class FitnessVideoGenerator:
         bg = ColorClip(size=(VIDEO_WIDTH, VIDEO_HEIGHT), color=(255, 87, 34), duration=duration).with_start(start)
         bg = FadeIn(0.1).apply(bg)
         bg = bg.with_opacity(0.9)
+        text_content = "节奏变化！\n" + (f"即将: {next_action}" if next_action else "")
+        lines = text_content.count('\n') + 1
         txt = TextClip(
-            text="节奏变化！\n" + (f"即将: {next_action}" if next_action else ""),
-            font_size=100, color='white', font=FONT_PATH, method='caption',
-            size=(int(VIDEO_WIDTH * 0.9), None), text_align='center',
+            text=text_content, font_size=100, color='white', font=FONT_PATH, method='caption',
+            size=(int(VIDEO_WIDTH * 0.9), int(100 * lines * 1.6)), text_align='center',
             horizontal_align='center', vertical_align='center',
             stroke_color='black', stroke_width=3
         ).with_duration(duration).with_start(start).with_position('center')
@@ -105,16 +106,22 @@ class FitnessVideoGenerator:
     
     def create_preview_overlay(self, next_action, duration, start):
         overlay = ColorClip(size=(VIDEO_WIDTH, VIDEO_HEIGHT), color=(0, 0, 0), duration=duration).with_start(start).with_opacity(0.4)
+        preview_text = f"NEXT\n{next_action}"
+        preview_lines = preview_text.count('\n') + 1
         preview_txt = TextClip(
-            text=f"NEXT\n{next_action}", font_size=120, color='#FFD700', font=FONT_PATH,
-            method='caption', size=(int(VIDEO_WIDTH * 0.9), None), text_align='center',
+            text=preview_text, font_size=120, color='#FFD700', font=FONT_PATH,
+            method='caption', size=(int(VIDEO_WIDTH * 0.9), int(120 * preview_lines * 1.6)), text_align='center',
             horizontal_align='center', vertical_align='center',
             stroke_color='black', stroke_width=4
         ).with_duration(duration).with_start(start).with_position('center')
+        countdown_text = "▶▶▶ 准备切换 ▶▶▶"
+        countdown_lines = countdown_text.count('\n') + 1
         countdown = TextClip(
-            text="▶▶▶ 准备切换 ▶▶▶", font_size=60, color='yellow', font=FONT_PATH,
-            bg_color='black', text_align='center', horizontal_align='center'
-        ).with_duration(duration).with_start(start).with_position(('center', VIDEO_HEIGHT * 0.85))
+            text=countdown_text, font_size=60, color='yellow', font=FONT_PATH,
+            bg_color='black', method='caption', 
+            size=(int(VIDEO_WIDTH * 0.9), int(60 * countdown_lines * 1.6)),
+            text_align='center', horizontal_align='center', vertical_align='center'
+        ).with_duration(duration).with_start(start).with_position(('center', VIDEO_HEIGHT * 0.82))
         return [overlay, preview_txt, countdown]
 
     def generate(self):
@@ -197,12 +204,15 @@ class FitnessVideoGenerator:
             elif idx_in_group == type_num - 1 and type_num >= 2 and i < len(timeline) - 1:
                 next_row = timeline[i+1]['row']
                 next_name = str(next_row['ActionName'])
+                auto_preview_text = f"准备: {next_name}"
+                auto_preview_lines = auto_preview_text.count('\n') + 1
                 auto_preview = TextClip(
-                    text=f"准备: {next_name}", font_size=45, color='yellow', font=FONT_PATH,
-                    bg_color='black', method='caption', size=(int(VIDEO_WIDTH * 0.9), None),
-                    text_align='center', horizontal_align='center'
+                    text=auto_preview_text, font_size=45, color='yellow', font=FONT_PATH,
+                    bg_color='black', method='caption', 
+                    size=(int(VIDEO_WIDTH * 0.9), int(45 * auto_preview_lines * 1.6)),
+                    text_align='center', horizontal_align='center', vertical_align='center'
                 ).with_duration(duration).with_start(start_time)
-                auto_preview = auto_preview.with_position((VIDEO_WIDTH*0.5, VIDEO_HEIGHT*0.88))
+                auto_preview = auto_preview.with_position(('center', VIDEO_HEIGHT * 0.84))
                 self.clips.append(auto_preview)
         
         print("🎞️ 合成视频...")
