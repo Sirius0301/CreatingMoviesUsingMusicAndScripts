@@ -95,10 +95,13 @@ class FitnessVideoGenerator:
         bg = FadeIn(0.1).apply(bg)
         bg = bg.with_opacity(0.9)
         text_content = "节奏变化！\n" + (f"即将: {next_action}" if next_action else "")
-        lines = text_content.count('\n') + 1
+        # 智能估算实际行数：节奏变化！占1行，动作名称按每6个字符一行估算
+        action_text = next_action if next_action else ""
+        action_lines = max(1, (len(action_text) + 5) // 6) if action_text else 0
+        estimated_lines = 1 + action_lines  # 节奏变化！+ 动作名称的实际行数
         txt = TextClip(
             text=text_content, font_size=100, color='white', font=FONT_PATH, method='caption',
-            size=(int(VIDEO_WIDTH * 0.9), int(100 * lines * 1.6)), text_align='center',
+            size=(int(VIDEO_WIDTH * 0.95), int(100 * estimated_lines * 2.2)), text_align='center',
             horizontal_align='center', vertical_align='center',
             stroke_color='black', stroke_width=3
         ).with_duration(duration).with_start(start).with_position('center')
@@ -106,11 +109,17 @@ class FitnessVideoGenerator:
     
     def create_preview_overlay(self, next_action, duration, start):
         overlay = ColorClip(size=(VIDEO_WIDTH, VIDEO_HEIGHT), color=(0, 0, 0), duration=duration).with_start(start).with_opacity(0.4)
-        preview_text = f"NEXT\n{next_action}"
-        preview_lines = preview_text.count('\n') + 1
+        # 限制动作名称长度，防止文本过长
+        max_chars = 12
+        display_action = next_action if len(next_action) <= max_chars else next_action[:max_chars-2] + "..."
+        preview_text = f"NEXT\n{display_action}"
+        # 估算实际行数：NEXT占1行，动作名称按每6个字符一行估算（中文在120字号下大约占这么宽）
+        action_lines = max(1, (len(display_action) + 5) // 6)  # 向上取整
+        estimated_lines = 1 + action_lines  # NEXT + 动作名称的实际行数
+        # 高度倍数增加到2.2，确保3-4行文本都能完整显示
         preview_txt = TextClip(
             text=preview_text, font_size=120, color='#FFD700', font=FONT_PATH,
-            method='caption', size=(int(VIDEO_WIDTH * 0.9), int(120 * preview_lines * 1.6)), text_align='center',
+            method='caption', size=(int(VIDEO_WIDTH * 0.95), int(120 * estimated_lines * 2.2)), text_align='center',
             horizontal_align='center', vertical_align='center',
             stroke_color='black', stroke_width=4
         ).with_duration(duration).with_start(start).with_position('center')
@@ -119,7 +128,7 @@ class FitnessVideoGenerator:
         countdown = TextClip(
             text=countdown_text, font_size=60, color='yellow', font=FONT_PATH,
             bg_color='black', method='caption', 
-            size=(int(VIDEO_WIDTH * 0.9), int(60 * countdown_lines * 1.6)),
+            size=(int(VIDEO_WIDTH * 0.95), int(60 * countdown_lines * 1.6)),
             text_align='center', horizontal_align='center', vertical_align='center'
         ).with_duration(duration).with_start(start).with_position(('center', VIDEO_HEIGHT * 0.82))
         return [overlay, preview_txt, countdown]

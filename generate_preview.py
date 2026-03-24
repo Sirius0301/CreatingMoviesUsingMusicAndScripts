@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
 """
-生成 1分钟预览视频（前16个8拍）- 竖屏 1080x1920
-支持使用临时文件 temp-audio.m4a 和 temp-excel.xlsx
+生成 1分钟预览视频 - 竖屏 1080x1920
+功能与 generate_video.py 完全一致，只生成前1分钟
+使用 temp-audio.m4a 和 temp-excel.xlsx
 """
 import librosa
 import pandas as pd
 import numpy as np
 from moviepy import AudioFileClip, ColorClip, CompositeVideoClip, TextClip
+from moviepy.video.fx import FadeIn
 import os
-from typing import Tuple
+from datetime import datetime
+from typing import List, Tuple, Dict
 
 # ==================== 配置 ====================
-# 优先使用临时文件（如果存在），否则使用默认文件
-TEMP_MUSIC_PATH = "temp-audio.m4a"  # 临时音乐文件
-TEMP_EXCEL_PATH = "temp-excel.xlsx"  # 临时Excel文件
-
+TEMP_MUSIC_PATH = "temp-audio.m4a"
+TEMP_EXCEL_PATH = "temp-excel.xlsx"
 DEFAULT_MUSIC_PATH = "music/buttScaler23/06 06 Lose Control.mp3"
 DEFAULT_EXCEL_PATH = "excel/butterScaler/butterScaler23.xlsx"
 OUTPUT_DIR = "output/buttScaler23"
@@ -23,25 +24,10 @@ FONT_PATH = "fonts/SourceHanSansHWSC-Bold.otf"
 VIDEO_WIDTH = 1080
 VIDEO_HEIGHT = 1920
 BEATS_PER_RHYTHM = 2
-MAX_8BEATS = 16
+ALERT_BEATS = 4
+MAX_DURATION = 60  # 最大预览时长 60秒
 
-def get_music_path():
-    """获取音乐文件路径，优先使用临时文件"""
-    if os.path.exists(TEMP_MUSIC_PATH):
-        print(f"  使用临时音乐: {TEMP_MUSIC_PATH}")
-        return TEMP_MUSIC_PATH
-    print(f"  使用默认音乐: {DEFAULT_MUSIC_PATH}")
-    return DEFAULT_MUSIC_PATH
-
-def get_excel_path():
-    """获取Excel文件路径，优先使用临时文件"""
-    if os.path.exists(TEMP_EXCEL_PATH):
-        print(f"  使用临时Excel: {TEMP_EXCEL_PATH}")
-        return TEMP_EXCEL_PATH
-    print(f"  使用默认Excel: {DEFAULT_EXCEL_PATH}")
-    return DEFAULT_EXCEL_PATH
-
-def get_type_color(type_num: int) -> Tuple[int, int, int]:
+def get_type_color(type_num):
     color_map = {
         2: (255, 255, 255), 4: (255, 235, 59), 6: (255, 152, 0),
         8: (244, 67, 54), 10: (156, 39, 176), 12: (63, 81, 181),
@@ -49,116 +35,246 @@ def get_type_color(type_num: int) -> Tuple[int, int, int]:
     }
     return color_map.get(type_num, (128, 128, 128))
 
-def get_text_color(type_num: int) -> str:
+def get_text_color(type_num):
     return 'black' if type_num in [2, 4, 6] else 'white'
 
-def create_text_clip(text, fontsize, color, duration, start, pos_y):
-    """修复字体显示问题 - 明确指定文本区域高度"""
-    lines = text.count('\n') + 1
-    return TextClip(
-        text=text, font_size=fontsize, color=color, font=FONT_PATH,
-        method='caption', size=(int(VIDEO_WIDTH * 0.85), int(fontsize * lines * 1.5)),
-        text_align='center', horizontal_align='center', vertical_align='center'
-    ).with_duration(duration).with_start(start).with_position(('center', VIDEO_HEIGHT * pos_y))
+class PreviewVideoGenerator:
+    def __init__(self, music_path, excel_path, output_path):
+        self.music_path = music_path
+        self.excel_path = excel_path
+        self.output_path = output_path
+        self.beat_times = None
+        self.bpm = None
+        self.clips = []
+        self.audio_duration = 0
+        
+    def analyze_music(self):
+        print(f"🎵 分析音频: {os.path.basename(self.music_path)}")
+        y, sr = librosa.load(self.music_path, sr=None)
+        self.audio_duration = min(len(y) / sr, MAX_DURATION)  # 限制为60秒
+        tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr, start_bpm=128)
+        self.bpm = float(tempo[0]) if hasattr(tempo, '__len__') else float(tempo)
+        self.beat_times = librosa.frames_to_time(beat_frames, sr=sr)
+        max_beats = int(self.audio_duration / 60 * self.bpm)
+        print(f"✅ BPM: {self.bpm:.1f}, 预览时长: {self.audio_duration:.1f}s, 最大节拍数: {max_beats}")
+        
+    def get_beat_time(self, beat_idx):
+        if beat_idx < 0:
+            first_beat = self.beat_times[0] if len(self.beat_times) > 0 else 0
+            beat_duration = 60 / self.bpm if self.bpm > 0 else 0.5
+            return first_beat + beat_idx * beat_duration
+        if beat_idx < len(self.beat_times):
+            return self.beat_times[beat_idx]
+        last_time = self.beat_times[-1] if len(self.beat_times) > 0 else 0
+        beat_duration = 60 / self.bpm if self.bpm > 0 else 0.5
+        return last_time + (beat_idx - len(self.beat_times) + 1) * beat_duration
+        
+    def create_text_clip(self, text, fontsize, color, duration, start, pos_y):
+        lines = text.count('\n') + 1
+        return TextClip(
+            text=text, font_size=fontsize, color=color, font=FONT_PATH,
+            method='caption', size=(int(VIDEO_WIDTH * 0.85), int(fontsize * lines * 1.6)),
+            text_align='center', horizontal_align='center', vertical_align='center'
+        ).with_duration(duration).with_start(start).with_position(('center', VIDEO_HEIGHT * pos_y))
+    
+    def create_alert_clip(self, next_action, duration, start):
+        bg = ColorClip(size=(VIDEO_WIDTH, VIDEO_HEIGHT), color=(255, 87, 34), duration=duration).with_start(start)
+        bg = FadeIn(0.1).apply(bg)
+        bg = bg.with_opacity(0.9)
+        text_content = "节奏变化！\n" + (f"即将: {next_action}" if next_action else "")
+        # 智能估算实际行数：节奏变化！占1行，动作名称按每6个字符一行估算
+        action_text = next_action if next_action else ""
+        action_lines = max(1, (len(action_text) + 5) // 6) if action_text else 0
+        estimated_lines = 1 + action_lines  # 节奏变化！+ 动作名称的实际行数
+        txt = TextClip(
+            text=text_content, font_size=100, color='white', font=FONT_PATH, method='caption',
+            size=(int(VIDEO_WIDTH * 0.95), int(100 * estimated_lines * 2.2)), text_align='center',
+            horizontal_align='center', vertical_align='center',
+            stroke_color='black', stroke_width=3
+        ).with_duration(duration).with_start(start).with_position('center')
+        return [bg, txt]
+    
+    def create_preview_overlay(self, next_action, duration, start):
+        overlay = ColorClip(size=(VIDEO_WIDTH, VIDEO_HEIGHT), color=(0, 0, 0), duration=duration).with_start(start).with_opacity(0.4)
+        # 限制动作名称长度，防止文本过长
+        max_chars = 12
+        display_action = next_action if len(next_action) <= max_chars else next_action[:max_chars-2] + "..."
+        preview_text = f"NEXT\n{display_action}"
+        # 估算实际行数：NEXT占1行，动作名称按每6个字符一行估算（中文在120字号下大约占这么宽）
+        action_lines = max(1, (len(display_action) + 5) // 6)  # 向上取整
+        estimated_lines = 1 + action_lines  # NEXT + 动作名称的实际行数
+        # 高度倍数增加到2.5，确保3-4行文本都能完整显示
+        preview_txt = TextClip(
+            text=preview_text, font_size=120, color='#FFD700', font=FONT_PATH,
+            method='caption', size=(int(VIDEO_WIDTH * 0.95), int(120 * estimated_lines * 2.2)), text_align='center',
+            horizontal_align='center', vertical_align='center',
+            stroke_color='black', stroke_width=4
+        ).with_duration(duration).with_start(start).with_position('center')
+        countdown_text = "▶▶▶ 准备切换 ▶▶▶"
+        countdown_lines = countdown_text.count('\n') + 1
+        countdown = TextClip(
+            text=countdown_text, font_size=60, color='yellow', font=FONT_PATH,
+            bg_color='black', method='caption', 
+            size=(int(VIDEO_WIDTH * 0.95), int(60 * countdown_lines * 1.6)),
+            text_align='center', horizontal_align='center', vertical_align='center'
+        ).with_duration(duration).with_start(start).with_position(('center', VIDEO_HEIGHT * 0.82))
+        return [overlay, preview_txt, countdown]
+
+    def generate(self):
+        """生成1分钟预览视频"""
+        self.analyze_music()
+        df = pd.read_excel(self.excel_path)
+        print(f"📊 读取到 {len(df)} 行编排数据")
+        
+        group_counters = {}
+        current_group_id = None
+        timeline = []
+        current_beat = 0
+        
+        for idx, row in df.iterrows():
+            action_name = str(row['ActionName'])
+            rhythms = int(row['Rhythms'])
+            type_num = int(row['Type'])
+            group_key = f"{action_name}_{type_num}"
+            
+            if group_key != current_group_id:
+                current_group_id = group_key
+                group_counters[current_group_id] = 0
+            group_counters[current_group_id] += 1
+            idx_in_group = group_counters[current_group_id]
+            
+            beats = rhythms * BEATS_PER_RHYTHM
+            start_beat = current_beat
+            end_beat = start_beat + beats
+            
+            timeline.append({
+                'row': row, 'start_beat': start_beat, 'end_beat': end_beat,
+                'idx_in_group': idx_in_group, 'group_key': group_key, 'row_index': idx
+            })
+            current_beat = end_beat
+        
+        print(f"🎬 预计总时长: {self.get_beat_time(current_beat):.1f}秒")
+        
+        # 计算音频能支持的最大beat数，超出部分自动截断
+        audio_max_beats = int(self.audio_duration / 60 * self.bpm)
+        if current_beat > audio_max_beats:
+            print(f"⚠️ 警告: Excel需要{current_beat}beats，预览只支持{audio_max_beats}beats，将自动截断")
+        
+        for i, item in enumerate(timeline):
+            row = item['row']
+            start_beat = item['start_beat']
+            end_beat = item['end_beat']
+            idx_in_group = item['idx_in_group']
+            start_time = self.get_beat_time(start_beat)
+            end_time = self.get_beat_time(end_beat)
+            duration = end_time - start_time
+            
+            # 检查是否超出预览时长，超出则跳过
+            if start_time >= self.audio_duration:
+                continue
+            
+            # 如果部分超出，截断duration
+            if end_time > self.audio_duration:
+                end_time = self.audio_duration
+                duration = end_time - start_time
+                print(f"  截断: 第{i+1}行部分超出预览时长，已截断")
+            
+            action_name = str(row['ActionName'])
+            type_num = int(row['Type'])
+            main_hint = str(row['MainHint']) if pd.notna(row['MainHint']) else action_name
+            sub_hint = str(row['SubHint']) if pd.notna(row['SubHint']) else ""
+            is_preview = bool(row.get('IsPreview', False))
+            next_action = str(row.get('NextActionName', '')) if pd.notna(row.get('NextActionName', '')) else ''
+            rhythm_alert = bool(row.get('RhythmAlert', False))
+            
+            bg_color = get_type_color(type_num)
+            text_color = get_text_color(type_num)
+            
+            print(f"  处理: {action_name} [{idx_in_group}/{type_num}] ({duration:.1f}s)")
+            
+            if rhythm_alert and i > 0:
+                alert_start = self.get_beat_time(start_beat - ALERT_BEATS)
+                alert_duration = start_time - alert_start
+                if alert_duration > 0 and alert_start < self.audio_duration:
+                    if alert_start + alert_duration > self.audio_duration:
+                        alert_duration = self.audio_duration - alert_start
+                    alert_clips = self.create_alert_clip(action_name, alert_duration, alert_start)
+                    self.clips.extend(alert_clips)
+            
+            bg = ColorClip(size=(VIDEO_WIDTH, VIDEO_HEIGHT), color=bg_color, duration=duration).with_start(start_time)
+            self.clips.append(bg)
+            
+            main_clip = self.create_text_clip(main_hint, 80, text_color, duration, start_time, 0.35)
+            self.clips.append(main_clip)
+            
+            sub_display = f"{sub_hint}\n{idx_in_group}/{type_num}" if sub_hint else f"{idx_in_group}/{type_num}"
+            sub_clip = self.create_text_clip(sub_display, 50, text_color, duration, start_time, 0.50)
+            self.clips.append(sub_clip)
+            
+            if is_preview and next_action:
+                preview_clips = self.create_preview_overlay(next_action, duration, start_time)
+                self.clips.extend(preview_clips)
+            elif idx_in_group == type_num - 1 and type_num >= 2 and i < len(timeline) - 1:
+                next_row = timeline[i+1]['row']
+                next_name = str(next_row['ActionName'])
+                auto_preview_text = f"准备: {next_name}"
+                auto_preview_lines = auto_preview_text.count('\n') + 1
+                auto_preview = TextClip(
+                    text=auto_preview_text, font_size=45, color='yellow', font=FONT_PATH,
+                    bg_color='black', method='caption', 
+                    size=(int(VIDEO_WIDTH * 0.9), int(45 * auto_preview_lines * 1.6)),
+                    text_align='center', horizontal_align='center', vertical_align='center'
+                ).with_duration(duration).with_start(start_time)
+                auto_preview = auto_preview.with_position(('center', VIDEO_HEIGHT * 0.84))
+                self.clips.append(auto_preview)
+        
+        print("🎞️ 合成视频...")
+        final = CompositeVideoClip(self.clips, size=(VIDEO_WIDTH, VIDEO_HEIGHT))
+        audio = AudioFileClip(self.music_path).subclipped(0, final.duration)
+        final = final.with_audio(audio)
+        
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
+        final.write_videofile(
+            self.output_path, fps=30, codec='libx264', audio_codec='aac',
+            temp_audiofile='temp-audio.m4a', remove_temp=True, threads=4
+        )
+        print(f"✅ 完成: {self.output_path}")
+        return self.output_path
+
+def get_music_path():
+    """获取音乐文件路径，优先使用临时文件"""
+    if os.path.exists(TEMP_MUSIC_PATH):
+        print(f"📝 使用临时音乐: {TEMP_MUSIC_PATH}")
+        return TEMP_MUSIC_PATH
+    print(f"📝 使用默认音乐: {DEFAULT_MUSIC_PATH}")
+    return DEFAULT_MUSIC_PATH
+
+def get_excel_path():
+    """获取Excel文件路径，优先使用临时文件"""
+    if os.path.exists(TEMP_EXCEL_PATH):
+        print(f"📝 使用临时Excel: {TEMP_EXCEL_PATH}")
+        return TEMP_EXCEL_PATH
+    print(f"📝 使用默认Excel: {DEFAULT_EXCEL_PATH}")
+    return DEFAULT_EXCEL_PATH
 
 def main():
-    print("=" * 50)
-    print(" Preview Generator (1 minute, 16 x 8 beats)")
-    print("=" * 50)
+    print("=" * 60)
+    print("🎬 1分钟预览视频生成器 (1080x1920)")
+    print("=" * 60)
     
-    # 获取文件路径
     music_path = get_music_path()
     excel_path = get_excel_path()
     
     if not os.path.exists(music_path):
-        print(f"Error: Music file not found: {music_path}")
+        print(f"❌ 错误: 音乐文件不存在 {music_path}")
         return
     if not os.path.exists(excel_path):
-        print(f"Error: Excel file not found: {excel_path}")
+        print(f"❌ 错误: Excel文件不存在 {excel_path}")
         return
     
-    print("\nAnalyzing audio...")
-    y, sr = librosa.load(music_path, sr=None)
-    tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr, start_bpm=128)
-    bpm = float(tempo[0]) if hasattr(tempo, '__len__') else float(tempo)
-    beat_times = librosa.frames_to_time(beat_frames, sr=sr)
-    print(f"  BPM: {bpm:.1f}")
-    
-    def get_beat_time(beat_idx):
-        if beat_idx < 0:
-            return beat_times[0] + beat_idx * (60/bpm) if len(beat_times) > 0 else 0
-        if beat_idx < len(beat_times):
-            return beat_times[beat_idx]
-        return beat_times[-1] + (beat_idx - len(beat_times) + 1) * (60/bpm)
-    
-    df = pd.read_excel(excel_path)
-    target_beats = MAX_8BEATS * 8
-    current_beat = 0
-    filtered_rows = []
-    
-    for idx, row in df.iterrows():
-        rhythms = int(row['Rhythms'])
-        beats = rhythms * BEATS_PER_RHYTHM
-        if current_beat >= target_beats:
-            break
-        filtered_rows.append({
-            'row': row,
-            'start_beat': current_beat,
-            'end_beat': min(current_beat + beats, target_beats)
-        })
-        current_beat += beats
-    
-    print(f"  Generating {len(filtered_rows)} segments")
-    
-    clips = []
-    group_counters = {}
-    current_group_id = None
-    
-    for i, item in enumerate(filtered_rows):
-        row = item['row']
-        start_beat = item['start_beat']
-        end_beat = item['end_beat']
-        start_time = get_beat_time(start_beat)
-        end_time = get_beat_time(end_beat)
-        duration = end_time - start_time
-        
-        action_name = str(row['ActionName'])
-        type_num = int(row['Type'])
-        main_hint = str(row['MainHint']) if pd.notna(row['MainHint']) else action_name
-        sub_hint = str(row['SubHint']) if pd.notna(row['SubHint']) else ""
-        
-        group_key = f"{action_name}_{type_num}"
-        if group_key != current_group_id:
-            current_group_id = group_key
-            group_counters[current_group_id] = 0
-        group_counters[current_group_id] += 1
-        idx_in_group = group_counters[current_group_id]
-        
-        bg_color = get_type_color(type_num)
-        text_color = get_text_color(type_num)
-        
-        bg = ColorClip(size=(VIDEO_WIDTH, VIDEO_HEIGHT), color=bg_color, duration=duration).with_start(start_time)
-        clips.append(bg)
-        
-        main_clip = create_text_clip(main_hint, 60, text_color, duration, start_time, 0.35)
-        clips.append(main_clip)
-        
-        progress_text = f"{idx_in_group}/{type_num}"
-        sub_display = f"{sub_hint}\n{progress_text}" if sub_hint else progress_text
-        sub_clip = create_text_clip(sub_display, 40, text_color, duration, start_time, 0.55)
-        clips.append(sub_clip)
-    
-    print("Rendering...")
-    final = CompositeVideoClip(clips, size=(VIDEO_WIDTH, VIDEO_HEIGHT))
-    audio = AudioFileClip(music_path).subclipped(0, min(60, final.duration))
-    final = final.with_audio(audio)
-    
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
     output_path = os.path.join(OUTPUT_DIR, "preview.mp4")
-    
-    final.write_videofile(output_path, fps=30, codec='libx264', audio_codec='aac',
-                         temp_audiofile='temp-audio.m4a', remove_temp=True, threads=4)
-    print(f"Done: {output_path}")
+    gen = PreviewVideoGenerator(music_path, excel_path, output_path)
+    gen.generate()
 
 if __name__ == "__main__":
     main()
