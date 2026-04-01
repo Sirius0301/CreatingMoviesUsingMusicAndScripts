@@ -22,15 +22,15 @@ BATCH_CONFIGS = [
         "output": "butterScaler23_Section01_iPad.mp4"
     },
     {
-        "music": "music/buttScaler23/02 02 ONE MORE TIME.mp3",
-        "excel": "excel/butterScaler/butterScaler23.xlsx",
-        "output": "butterScaler23_Section02_iPad.mp4"
+        "music": "music/buttScaler23/05 05 I WANT IT.mp3",
+        "excel": "excel/butterScaler/butterScaler23-Section05.xlsx",
+        "output": "butterScaler23_Section05_iPad.mp4"
     },
-    {
-        "music": "music/buttScaler23/06 06 Lose Control.mp3",
-        "excel": "excel/butterScaler/butterScaler23-Section06.xlsx",
-        "output": "butterScaler23_Section06_iPad.mp4"
-    },
+    # {
+    #     "music": "music/buttScaler23/06 06 Lose Control.mp3",
+    #     "excel": "excel/butterScaler/butterScaler23-Section06.xlsx",
+    #     "output": "butterScaler23_Section06_iPad.mp4"
+    # },
 ]
 
 DEFAULT_MUSIC_PATH = "music/buttScaler23/06 06 Lose Control.mp3"
