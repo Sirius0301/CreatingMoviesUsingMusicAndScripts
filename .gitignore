@@ -44,8 +44,8 @@ Thumbs.db
 temp-audio.m4a
 
 # Excel files (user should add their own)
-excel/**/*.xlsx
-excel/**/*.csv
+# excel/**/*.xlsx
+# excel/**/*.csv
 !excel/.gitkeep
 !excel/table-template.xlsx
 !excel/table-template.csv
