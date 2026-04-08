@@ -16,11 +16,11 @@ from typing import List, Tuple, Dict
 # 配置列表：每个元素包含 music_path, excel_path, output_name
 # 按顺序依次处理，一次处理一个
 BATCH_CONFIGS = [
-    {
-        "music": "music/buttScaler23/01 I Just Might.mp3",
-        "excel": "excel/butterScaler/butterScaler23.xlsx",
-        "output": "butterScaler23_Section01_iPad.mp4"
-    },
+    # {
+    #     "music": "music/buttScaler23/01 I Just Might.mp3",
+    #     "excel": "excel/butterScaler/butterScaler23.xlsx",
+    #     "output": "butterScaler23_Section01_iPad.mp4"
+    # },
     {
         "music": "music/buttScaler23/05 05 I WANT IT.mp3",
         "excel": "excel/butterScaler/butterScaler23-Section05.xlsx",
