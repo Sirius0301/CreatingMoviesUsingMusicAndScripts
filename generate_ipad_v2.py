@@ -92,7 +92,7 @@ class iPadVideoGenerator:
         lines = max(min_lines, text.count('\n') + 1)
         return TextClip(
             text=text, font_size=fontsize, color=color, font=FONT_PATH,
-            method='caption', size=(int(VIDEO_WIDTH * 0.95), int(fontsize * lines * 3.2)),
+            method='caption', size=(int(VIDEO_WIDTH * 0.95), int(fontsize * lines * 2.0)),
             text_align='center', horizontal_align='center', vertical_align='center'
         ).with_duration(duration).with_start(start).with_position(('center', VIDEO_HEIGHT * pos_y))
     
@@ -240,27 +240,30 @@ class iPadVideoGenerator:
                 for idx, char in enumerate(chars):
                     char_start = start_time + idx * chars_per_rhythm * beat_duration
                     char_duration = chars_per_rhythm * beat_duration
-                    char_clip = self.create_text_clip(char, 160, text_color, char_duration, char_start, 0.10)
+                    char_clip = self.create_text_clip(char, 160, text_color, char_duration, char_start, 0.02)
                     self.clips.append(char_clip)
             else:
-                # MainHint预留2行显示空间，位置更靠上
-                main_clip = self.create_text_clip(main_hint, 160, text_color, duration, start_time, 0.10, min_lines=2)
+                # MainHint - 屏幕顶部附近，预留2行空间
+                main_clip = self.create_text_clip(main_hint, 160, text_color, duration, start_time, 0.02, min_lines=2)
                 self.clips.append(main_clip)
             
             # SubHint 和 Type 分开显示，增加间距
             if sub_hint:
-                sub_hint_clip = self.create_text_clip(sub_hint, 100, text_color, duration, start_time, 0.38)
+                # SubHint - MainHint下方，预留2行空间
+                sub_hint_clip = self.create_text_clip(sub_hint, 100, text_color, duration, start_time, 0.30, min_lines=2)
                 self.clips.append(sub_hint_clip)
                 type_display = f"{idx_in_group}/{type_num}"
-                type_clip = self.create_text_clip(type_display, 100, text_color, duration, start_time, 0.55)
+                # Type - SubHint下方
+                type_clip = self.create_text_clip(type_display, 100, text_color, duration, start_time, 0.48)
                 self.clips.append(type_clip)
             else:
                 type_display = f"{idx_in_group}/{type_num}"
-                type_clip = self.create_text_clip(type_display, 100, text_color, duration, start_time, 0.38)
+                # Type - MainHint下方（无SubHint时）
+                type_clip = self.create_text_clip(type_display, 100, text_color, duration, start_time, 0.30)
                 self.clips.append(type_clip)
             
-            # 在预览区域上方显示 ActionName
-            action_name_clip = self.create_text_clip(display_action_name, 80, '#808080', duration, start_time, 0.66)
+            # ActionName - Type下方
+            action_name_clip = self.create_text_clip(display_action_name, 80, '#808080', duration, start_time, 0.65)
             self.clips.append(action_name_clip)
             
             if is_preview and next_action:
