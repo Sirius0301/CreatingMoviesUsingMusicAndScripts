@@ -17,16 +17,16 @@ from typing import List, Tuple, Dict
 # 配置列表：每个元素包含 music_path, excel_path, output_name
 # 按顺序依次处理，一次处理一个
 BATCH_CONFIGS = [
-    # {
-    #     "music": "music/buttScaler23/01 I Just Might.mp3",
-    #     "excel": "excel/butterScaler/butterScaler23.xlsx",
-    #     "output": "butterScaler23_Section01_iPad_preview.mp4"
-    # },
     {
-        "music": "music/buttScaler23/06 06 Lose Control.mp3",
-        "excel": "excel/butterScaler/butterScaler23-Section06.xlsx",
-        "output": "butterScaler23_Section06_iPad_preview.mp4"
+        "music": "music/buttScaler23/02 02 ONE MORE TIME.mp3",
+        "excel": "excel/butterScaler/butterScaler23-Section02.xlsx",
+        "output": "butterScaler23_Section02_iPad_preview.mp4"
     },
+    # {
+    #     "music": "music/buttScaler23/06 06 Lose Control.mp3",
+    #     "excel": "excel/butterScaler/butterScaler23-Section06.xlsx",
+    #     "output": "butterScaler23_Section06_iPad_preview.mp4"
+    # },
 ]
 
 DEFAULT_MUSIC_PATH = "music/buttScaler23/06 06 Lose Control.mp3"
@@ -93,7 +93,7 @@ class iPadPreviewVideoGenerator:
         lines = max(min_lines, text.count('\n') + 1)
         return TextClip(
             text=text, font_size=fontsize, color=color, font=FONT_PATH,
-            method='caption', size=(int(VIDEO_WIDTH * 0.95), int(fontsize * lines * 2.0)),
+            method='caption', size=(int(VIDEO_WIDTH * 0.95), int(fontsize * lines * 1.6)),
             text_align='center', horizontal_align='center', vertical_align='center'
         ).with_duration(duration).with_start(start).with_position(('center', VIDEO_HEIGHT * pos_y))
     
@@ -244,27 +244,27 @@ class iPadPreviewVideoGenerator:
                     char_clip = self.create_text_clip(char, 160, text_color, char_duration, char_start, 0.02)
                     self.clips.append(char_clip)
             else:
-                # MainHint - 屏幕顶部附近，预留2行空间
+                # MainHint - 贴顶显示，预留2行空间
                 main_clip = self.create_text_clip(main_hint, 160, text_color, duration, start_time, 0.02, min_lines=2)
                 self.clips.append(main_clip)
             
             # SubHint 和 Type 分开显示，增加间距
             if sub_hint:
-                # SubHint - MainHint下方，预留2行空间
-                sub_hint_clip = self.create_text_clip(sub_hint, 100, text_color, duration, start_time, 0.30, min_lines=2)
+                # SubHint - MainHint下方，预留2行空间，增加间距避免重叠
+                sub_hint_clip = self.create_text_clip(sub_hint, 100, text_color, duration, start_time, 0.35, min_lines=2)
                 self.clips.append(sub_hint_clip)
                 type_display = f"{idx_in_group}/{type_num}"
-                # Type - SubHint下方
-                type_clip = self.create_text_clip(type_display, 100, text_color, duration, start_time, 0.48)
+                # Type - SubHint下方，增加间距
+                type_clip = self.create_text_clip(type_display, 100, text_color, duration, start_time, 0.50)
                 self.clips.append(type_clip)
             else:
                 type_display = f"{idx_in_group}/{type_num}"
                 # Type - MainHint下方（无SubHint时）
-                type_clip = self.create_text_clip(type_display, 100, text_color, duration, start_time, 0.30)
+                type_clip = self.create_text_clip(type_display, 100, text_color, duration, start_time, 0.35)
                 self.clips.append(type_clip)
             
-            # ActionName - Type下方
-            action_name_clip = self.create_text_clip(display_action_name, 80, '#808080', duration, start_time, 0.65)
+            # ActionName - Type下方，增加间距
+            action_name_clip = self.create_text_clip(display_action_name, 80, '#808080', duration, start_time, 0.68)
             self.clips.append(action_name_clip)
             
             if is_preview and next_action:

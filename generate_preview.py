@@ -16,8 +16,8 @@ from typing import List, Tuple, Dict
 # ==================== 配置 ====================
 TEMP_MUSIC_PATH = "temp-audio.m4a"
 TEMP_EXCEL_PATH = "temp-excel.xlsx"
-DEFAULT_MUSIC_PATH = "music/buttScaler23/06 06 Lose Control.mp3"
-DEFAULT_EXCEL_PATH = "excel/butterScaler/butterScaler23-Section06.xlsx"
+DEFAULT_MUSIC_PATH = "music/buttScaler23/02 02 ONE MORE TIME.mp3"
+DEFAULT_EXCEL_PATH = "excel/butterScaler/butterScaler23-Section02.xlsx"
 OUTPUT_DIR = "output/buttScaler23"
 FONT_PATH = "fonts/SourceHanSansHWSC-Bold.otf"
 
