@@ -85,11 +85,14 @@ class iPadVideoGenerator:
         beat_duration = 60 / self.bpm if self.bpm > 0 else 0.5
         return last_time + (beat_idx - len(self.beat_times) + 1) * beat_duration
         
-    def create_text_clip(self, text, fontsize, color, duration, start, pos_y):
+    def create_text_clip(self, text, fontsize, color, duration, start, pos_y, max_chars=15):
+        # 限制最多显示15个字
+        if len(text) > max_chars:
+            text = text[:max_chars]
         lines = text.count('\n') + 1
         return TextClip(
             text=text, font_size=fontsize, color=color, font=FONT_PATH,
-            method='caption', size=(int(VIDEO_WIDTH * 0.85), int(fontsize * lines * 1.5)),
+            method='caption', size=(int(VIDEO_WIDTH * 0.95), int(fontsize * lines * 3.2)),
             text_align='center', horizontal_align='center', vertical_align='center'
         ).with_duration(duration).with_start(start).with_position(('center', VIDEO_HEIGHT * pos_y))
     
@@ -223,19 +226,31 @@ class iPadVideoGenerator:
             bg = ColorClip(size=(VIDEO_WIDTH, VIDEO_HEIGHT), color=bg_color, duration=duration).with_start(start_time)
             self.clips.append(bg)
             
-            main_clip = self.create_text_clip(main_hint, 80, text_color, duration, start_time, 0.35)
+            main_clip = self.create_text_clip(main_hint, 160, text_color, duration, start_time, 0.18)
             self.clips.append(main_clip)
             
-            sub_display = f"{sub_hint}\n{idx_in_group}/{type_num}" if sub_hint else f"{idx_in_group}/{type_num}"
-            sub_clip = self.create_text_clip(sub_display, 50, text_color, duration, start_time, 0.50)
-            self.clips.append(sub_clip)
+            # SubHint 和 Type 分开显示，增加间距
+            if sub_hint:
+                sub_hint_clip = self.create_text_clip(sub_hint, 100, text_color, duration, start_time, 0.42)
+                self.clips.append(sub_hint_clip)
+                type_display = f"{idx_in_group}/{type_num}"
+                type_clip = self.create_text_clip(type_display, 100, text_color, duration, start_time, 0.58)
+                self.clips.append(type_clip)
+            else:
+                type_display = f"{idx_in_group}/{type_num}"
+                type_clip = self.create_text_clip(type_display, 100, text_color, duration, start_time, 0.52)
+                self.clips.append(type_clip)
+            
+            # 在预览区域上方显示 ActionName
+            action_name_clip = self.create_text_clip(action_name, 80, '#808080', duration, start_time, 0.72)
+            self.clips.append(action_name_clip)
             
             if is_preview and next_action:
                 preview_clips = self.create_preview_overlay(next_action, duration, start_time)
                 self.clips.extend(preview_clips)
             elif idx_in_group == type_num - 1 and type_num >= 2 and i < len(timeline) - 1:
                 next_row = timeline[i+1]['row']
-                next_name = str(next_row['ActionName'])
+                next_name = str(next_row.get('NextActionName', '')) if pd.notna(next_row.get('NextActionName', '')) else str(next_row['ActionName'])
                 auto_preview_text = f"准备: {next_name}"
                 auto_preview_lines = auto_preview_text.count('\n') + 1
                 auto_preview = TextClip(
@@ -244,7 +259,7 @@ class iPadVideoGenerator:
                     size=(int(VIDEO_WIDTH * 0.9), int(45 * auto_preview_lines * 1.6)),
                     text_align='center', horizontal_align='center', vertical_align='center'
                 ).with_duration(duration).with_start(start_time)
-                auto_preview = auto_preview.with_position(('center', VIDEO_HEIGHT * 0.84))
+                auto_preview = auto_preview.with_position(('center', VIDEO_HEIGHT * 0.86))
                 self.clips.append(auto_preview)
         
         print("🎞️ 合成视频...")
