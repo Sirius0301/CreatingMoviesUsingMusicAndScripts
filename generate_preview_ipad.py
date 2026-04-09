@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-健身团课视频生成器 - 竖屏完整版 (1080x1920)
+iPad 横屏视频生成器 - 预览版 (1920x1080)
+只生成前1分钟的预览视频
 支持批量处理多个音乐+Excel组合
 """
 import librosa
@@ -16,20 +17,15 @@ from typing import List, Tuple, Dict
 # 配置列表：每个元素包含 music_path, excel_path, output_name
 # 按顺序依次处理，一次处理一个
 BATCH_CONFIGS = [
-    {
-        "music": "music/buttScaler23/01 I Just Might.mp3",
-        "excel": "excel/butterScaler/butterScaler23.xlsx",
-        "output": "butterScaler23_Section01_Full.mp4"
-    },
-    {
-        "music": "music/buttScaler23/02 02 ONE MORE TIME.mp3",
-        "excel": "excel/butterScaler/butterScaler23.xlsx",
-        "output": "butterScaler23_Section02_Full.mp4"
-    },
+    # {
+    #     "music": "music/buttScaler23/01 I Just Might.mp3",
+    #     "excel": "excel/butterScaler/butterScaler23.xlsx",
+    #     "output": "butterScaler23_Section01_iPad_preview.mp4"
+    # },
     {
         "music": "music/buttScaler23/06 06 Lose Control.mp3",
         "excel": "excel/butterScaler/butterScaler23-Section06.xlsx",
-        "output": "butterScaler23_Section06_Full.mp4"
+        "output": "butterScaler23_Section06_iPad_preview.mp4"
     },
 ]
 
@@ -38,10 +34,11 @@ DEFAULT_EXCEL_PATH = "excel/butterScaler/butterScaler23-Section06.xlsx"
 OUTPUT_DIR = "output/buttScaler23"
 FONT_PATH = "fonts/SourceHanSansHWSC-Bold.otf"
 
-VIDEO_WIDTH = 1080
-VIDEO_HEIGHT = 1920
+VIDEO_WIDTH = 1920
+VIDEO_HEIGHT = 1080
 BEATS_PER_RHYTHM = 2
 ALERT_BEATS = 4
+PREVIEW_DURATION = 60  # 预览时长：1分钟
 
 def get_type_color(type_num):
     color_map = {
@@ -54,7 +51,7 @@ def get_type_color(type_num):
 def get_text_color(type_num):
     return 'black' if type_num in [2, 4, 6] else 'white'
 
-class FitnessVideoGenerator:
+class iPadPreviewVideoGenerator:
     def __init__(self, music_path, excel_path, output_path):
         self.music_path = music_path
         self.excel_path = excel_path
@@ -62,14 +59,21 @@ class FitnessVideoGenerator:
         self.beat_times = None
         self.bpm = None
         self.clips = []
+        self.audio_duration = 0
         
     def analyze_music(self):
         print(f"🎵 分析音频: {self.music_path}")
         y, sr = librosa.load(self.music_path, sr=None)
+        full_duration = len(y) / sr
+        # 限制只分析前1分钟
+        self.audio_duration = min(PREVIEW_DURATION, full_duration)
         tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr, start_bpm=128)
         self.bpm = float(tempo[0]) if hasattr(tempo, '__len__') else float(tempo)
         self.beat_times = librosa.frames_to_time(beat_frames, sr=sr)
-        print(f"✅ BPM: {self.bpm:.1f}, 检测到 {len(self.beat_times)} 个节拍")
+        # 过滤出前1分钟的节拍点
+        self.beat_times = self.beat_times[self.beat_times <= self.audio_duration]
+        max_beats = int(self.audio_duration / 60 * self.bpm)
+        print(f"✅ BPM: {self.bpm:.1f}, 预览时长: {self.audio_duration:.1f}s, 最大节拍数: {max_beats}")
         
     def get_beat_time(self, beat_idx):
         if beat_idx < 0:
@@ -82,11 +86,11 @@ class FitnessVideoGenerator:
         beat_duration = 60 / self.bpm if self.bpm > 0 else 0.5
         return last_time + (beat_idx - len(self.beat_times) + 1) * beat_duration
         
-    def create_text_clip(self, text, fontsize, color, duration, start, pos_y, max_chars=15):
+    def create_text_clip(self, text, fontsize, color, duration, start, pos_y, max_chars=15, min_lines=1):
         # 限制最多显示15个字
         if len(text) > max_chars:
             text = text[:max_chars]
-        lines = text.count('\n') + 1
+        lines = max(min_lines, text.count('\n') + 1)
         return TextClip(
             text=text, font_size=fontsize, color=color, font=FONT_PATH,
             method='caption', size=(int(VIDEO_WIDTH * 0.95), int(fontsize * lines * 3.2)),
@@ -98,10 +102,9 @@ class FitnessVideoGenerator:
         bg = FadeIn(0.1).apply(bg)
         bg = bg.with_opacity(0.9)
         text_content = "节奏变化！\n" + (f"即将: {next_action}" if next_action else "")
-        # 智能估算实际行数：节奏变化！占1行，动作名称按每6个字符一行估算
         action_text = next_action if next_action else ""
-        action_lines = max(1, (len(action_text) + 5) // 6) if action_text else 0
-        estimated_lines = 1 + action_lines  # 节奏变化！+ 动作名称的实际行数
+        action_lines = max(1, (len(action_text) + 7) // 8) if action_text else 0
+        estimated_lines = 1 + action_lines
         txt = TextClip(
             text=text_content, font_size=100, color='white', font=FONT_PATH, method='caption',
             size=(int(VIDEO_WIDTH * 0.95), int(100 * estimated_lines * 2.2)), text_align='center',
@@ -112,14 +115,11 @@ class FitnessVideoGenerator:
     
     def create_preview_overlay(self, next_action, duration, start):
         overlay = ColorClip(size=(VIDEO_WIDTH, VIDEO_HEIGHT), color=(0, 0, 0), duration=duration).with_start(start).with_opacity(0.4)
-        # 限制动作名称长度，防止文本过长
-        max_chars = 12
+        max_chars = 16
         display_action = next_action if len(next_action) <= max_chars else next_action[:max_chars-2] + "..."
         preview_text = f"NEXT\n{display_action}"
-        # 估算实际行数：NEXT占1行，动作名称按每6个字符一行估算（中文在120字号下大约占这么宽）
-        action_lines = max(1, (len(display_action) + 5) // 6)  # 向上取整
-        estimated_lines = 1 + action_lines  # NEXT + 动作名称的实际行数
-        # 高度倍数增加到2.2，确保3-4行文本都能完整显示
+        action_lines = max(1, (len(display_action) + 7) // 8)
+        estimated_lines = 1 + action_lines
         preview_txt = TextClip(
             text=preview_text, font_size=120, color='#FFD700', font=FONT_PATH,
             method='caption', size=(int(VIDEO_WIDTH * 0.95), int(120 * estimated_lines * 2.2)), text_align='center',
@@ -137,7 +137,7 @@ class FitnessVideoGenerator:
         return [overlay, preview_txt, countdown]
 
     def generate(self):
-        """生成完整版视频（随音乐时长）"""
+        """生成预览版视频（只取前1分钟）"""
         self.analyze_music()
         df = pd.read_excel(self.excel_path)
         print(f"📊 读取到 {len(df)} 行编排数据")
@@ -147,6 +147,7 @@ class FitnessVideoGenerator:
         timeline = []
         current_beat = 0
         
+        # 先构建完整的timeline，然后根据预览时长截断
         for idx, row in df.iterrows():
             action_name = str(row['ActionName'])
             rhythms = int(row['Rhythms'])
@@ -169,9 +170,20 @@ class FitnessVideoGenerator:
             })
             current_beat = end_beat
         
-        print(f"🎬 总时长: {self.get_beat_time(current_beat):.1f}秒")
+        # 计算1分钟能包含多少行
+        preview_end_time = self.audio_duration
+        max_rows = 0
+        for item in timeline:
+            start_time = self.get_beat_time(item['start_beat'])
+            if start_time < preview_end_time:
+                max_rows += 1
+            else:
+                break
         
-        for i, item in enumerate(timeline):
+        print(f"🎬 预览总时长: {preview_end_time:.1f}秒, 将处理前 {max_rows} 行数据")
+        
+        actual_end_time = 0
+        for i, item in enumerate(timeline[:max_rows]):
             row = item['row']
             start_beat = item['start_beat']
             end_beat = item['end_beat']
@@ -180,9 +192,20 @@ class FitnessVideoGenerator:
             end_time = self.get_beat_time(end_beat)
             duration = end_time - start_time
             
+            # 检查是否超出预览时长
+            if start_time >= preview_end_time:
+                break
+            
+            # 如果部分超出，截断duration
+            if end_time > preview_end_time:
+                end_time = preview_end_time
+                duration = end_time - start_time
+                print(f"  截断: 第{i+1}行部分超出预览时长，已截断")
+            
+            actual_end_time = end_time
+            
             action_name = str(row['ActionName'])
             type_num = int(row['Type'])
-            # 支持 StepActionName 列：每一步可以显示不同的动作名，不影响 Type 计数
             step_action_name = str(row.get('StepActionName', '')) if pd.notna(row.get('StepActionName', '')) else ''
             display_action_name = step_action_name if step_action_name else action_name
             main_hint = str(row['MainHint']) if pd.notna(row['MainHint']) else display_action_name
@@ -199,7 +222,9 @@ class FitnessVideoGenerator:
             if rhythm_alert and i > 0:
                 alert_start = self.get_beat_time(start_beat - ALERT_BEATS)
                 alert_duration = start_time - alert_start
-                if alert_duration > 0:
+                if alert_duration > 0 and alert_start < preview_end_time:
+                    if alert_start + alert_duration > preview_end_time:
+                        alert_duration = preview_end_time - alert_start
                     alert_clips = self.create_alert_clip(action_name, alert_duration, alert_start)
                     self.clips.extend(alert_clips)
             
@@ -210,39 +235,39 @@ class FitnessVideoGenerator:
             rhythms = int(row['Rhythms'])
             main_hint_str = str(main_hint) if pd.notna(main_hint) else ""
             if main_hint_str.isdigit() and len(main_hint_str) > 1 and rhythms % len(main_hint_str) == 0:
-                # 倒数模式：将每个数字分配到对应的rhythm时间段
-                chars = list(main_hint_str)  # 如 "4321" -> ['4','3','2','1']
+                chars = list(main_hint_str)
                 chars_per_rhythm = rhythms // len(chars)
                 beat_duration = (end_time - start_time) / rhythms
                 for idx, char in enumerate(chars):
                     char_start = start_time + idx * chars_per_rhythm * beat_duration
                     char_duration = chars_per_rhythm * beat_duration
-                    char_clip = self.create_text_clip(char, 160, text_color, char_duration, char_start, 0.18)
+                    char_clip = self.create_text_clip(char, 160, text_color, char_duration, char_start, 0.10)
                     self.clips.append(char_clip)
             else:
-                main_clip = self.create_text_clip(main_hint, 160, text_color, duration, start_time, 0.18)
+                # MainHint预留2行显示空间，位置更靠上
+                main_clip = self.create_text_clip(main_hint, 160, text_color, duration, start_time, 0.10, min_lines=2)
                 self.clips.append(main_clip)
             
             # SubHint 和 Type 分开显示，增加间距
             if sub_hint:
-                sub_hint_clip = self.create_text_clip(sub_hint, 100, text_color, duration, start_time, 0.42)
+                sub_hint_clip = self.create_text_clip(sub_hint, 100, text_color, duration, start_time, 0.38)
                 self.clips.append(sub_hint_clip)
                 type_display = f"{idx_in_group}/{type_num}"
-                type_clip = self.create_text_clip(type_display, 100, text_color, duration, start_time, 0.58)
+                type_clip = self.create_text_clip(type_display, 100, text_color, duration, start_time, 0.55)
                 self.clips.append(type_clip)
             else:
                 type_display = f"{idx_in_group}/{type_num}"
-                type_clip = self.create_text_clip(type_display, 100, text_color, duration, start_time, 0.52)
+                type_clip = self.create_text_clip(type_display, 100, text_color, duration, start_time, 0.38)
                 self.clips.append(type_clip)
             
             # 在预览区域上方显示 ActionName
-            action_name_clip = self.create_text_clip(display_action_name, 80, '#808080', duration, start_time, 0.72)
+            action_name_clip = self.create_text_clip(display_action_name, 80, '#808080', duration, start_time, 0.66)
             self.clips.append(action_name_clip)
             
             if is_preview and next_action:
                 preview_clips = self.create_preview_overlay(next_action, duration, start_time)
                 self.clips.extend(preview_clips)
-            elif idx_in_group == type_num - 1 and type_num >= 2 and i < len(timeline) - 1:
+            elif idx_in_group == type_num - 1 and type_num >= 2 and i < len(timeline[:max_rows]) - 1:
                 next_row = timeline[i+1]['row']
                 next_name = str(next_row.get('NextActionName', '')) if pd.notna(next_row.get('NextActionName', '')) else str(next_row['ActionName'])
                 auto_preview_text = f"准备: {next_name}"
@@ -270,14 +295,14 @@ class FitnessVideoGenerator:
         return self.output_path
 
 def process_single(music_path, excel_path, output_name):
-    """处理单个视频"""
+    """处理单个预览视频"""
     output_path = os.path.join(OUTPUT_DIR, output_name)
-    gen = FitnessVideoGenerator(music_path, excel_path, output_path)
+    gen = iPadPreviewVideoGenerator(music_path, excel_path, output_path)
     return gen.generate()
 
 def main():
     print("=" * 60)
-    print("🎬 健身团课视频生成器 - 竖屏完整版")
+    print("🎬 iPad 横屏视频生成器 - 预览版 (1920x1080)")
     print("=" * 60)
     
     if BATCH_CONFIGS:
@@ -318,7 +343,7 @@ def main():
             print(f"❌ 错误: Excel文件不存在 {DEFAULT_EXCEL_PATH}")
             return
         
-        output_name = f"fitness_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp4"
+        output_name = f"fitness_preview_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp4"
         process_single(DEFAULT_MUSIC_PATH, DEFAULT_EXCEL_PATH, output_name)
 
 if __name__ == "__main__":

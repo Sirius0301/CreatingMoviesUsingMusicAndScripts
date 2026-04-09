@@ -184,7 +184,10 @@ class PreviewVideoGenerator:
             
             action_name = str(row['ActionName'])
             type_num = int(row['Type'])
-            main_hint = str(row['MainHint']) if pd.notna(row['MainHint']) else action_name
+            # 支持 StepActionName 列：每一步可以显示不同的动作名，不影响 Type 计数
+            step_action_name = str(row.get('StepActionName', '')) if pd.notna(row.get('StepActionName', '')) else ''
+            display_action_name = step_action_name if step_action_name else action_name
+            main_hint = str(row['MainHint']) if pd.notna(row['MainHint']) else display_action_name
             sub_hint = str(row['SubHint']) if pd.notna(row['SubHint']) else ""
             is_preview = bool(row.get('IsPreview', False))
             next_action = str(row.get('NextActionName', '')) if pd.notna(row.get('NextActionName', '')) else ''
@@ -193,7 +196,7 @@ class PreviewVideoGenerator:
             bg_color = get_type_color(type_num)
             text_color = get_text_color(type_num)
             
-            print(f"  处理: {action_name} [{idx_in_group}/{type_num}] ({duration:.1f}s)")
+            print(f"  处理: {display_action_name} [{idx_in_group}/{type_num}] ({duration:.1f}s)")
             
             if rhythm_alert and i > 0:
                 alert_start = self.get_beat_time(start_beat - ALERT_BEATS)
@@ -207,8 +210,22 @@ class PreviewVideoGenerator:
             bg = ColorClip(size=(VIDEO_WIDTH, VIDEO_HEIGHT), color=bg_color, duration=duration).with_start(start_time)
             self.clips.append(bg)
             
-            main_clip = self.create_text_clip(main_hint, 160, text_color, duration, start_time, 0.18)
-            self.clips.append(main_clip)
+            # 检查是否需要倒数显示：MainHint是纯数字且能被Rhythms整除
+            rhythms = int(row['Rhythms'])
+            main_hint_str = str(main_hint) if pd.notna(main_hint) else ""
+            if main_hint_str.isdigit() and len(main_hint_str) > 1 and rhythms % len(main_hint_str) == 0:
+                # 倒数模式：将每个数字分配到对应的rhythm时间段
+                chars = list(main_hint_str)  # 如 "4321" -> ['4','3','2','1']
+                chars_per_rhythm = rhythms // len(chars)
+                beat_duration = (end_time - start_time) / rhythms
+                for idx, char in enumerate(chars):
+                    char_start = start_time + idx * chars_per_rhythm * beat_duration
+                    char_duration = chars_per_rhythm * beat_duration
+                    char_clip = self.create_text_clip(char, 160, text_color, char_duration, char_start, 0.18)
+                    self.clips.append(char_clip)
+            else:
+                main_clip = self.create_text_clip(main_hint, 160, text_color, duration, start_time, 0.18)
+                self.clips.append(main_clip)
             
             # SubHint 和 Type 分开显示，增加间距
             if sub_hint:
@@ -223,7 +240,7 @@ class PreviewVideoGenerator:
                 self.clips.append(type_clip)
             
             # 在预览区域上方显示 ActionName
-            action_name_clip = self.create_text_clip(action_name, 80, '#808080', duration, start_time, 0.72)
+            action_name_clip = self.create_text_clip(display_action_name, 80, '#808080', duration, start_time, 0.72)
             self.clips.append(action_name_clip)
             
             if is_preview and next_action:

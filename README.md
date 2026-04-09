@@ -80,15 +80,18 @@ ls output/buttScaler23/*.mp4
 
 **Excel编排表示例**（参考 `excel/table-template.csv`）：
 
-| ActionName | Type | Rhythms | MainHint | SubHint |
-|-----------|------|---------|---------|---------|
-| 深蹲 | 4 | 4 | 双脚开立 | 与肩同宽 |
-| 深蹲 | 4 | 4 | 臀部后坐 | 膝盖对准脚尖 |
+| ActionName | Type | Rhythms | StepActionName | MainHint | SubHint |
+|-----------|------|---------|----------------|---------|---------|
+| 深蹲组合 | 4 | 4 | 深蹲2次 | 双脚开立 | 与肩同宽 |
+| 深蹲组合 | 4 | 4 | 深蹲2次 | 臀部后坐 | 膝盖对准脚尖 |
+| 深蹲+弓步蹲 | 8 | 4 | 4次半程深蹲 | | |
+| 深蹲+弓步蹲 | 8 | 4 | 4次弓步蹲 | | |
 
 **字段说明**：
-- `ActionName`: 动作名称（相同名称+Type视为一组）
+- `ActionName`: 动作组名称（相同名称+Type视为一组，用于计算进度）
 - `Type`: 动作组总8拍数（2=白, 4=黄, 8=红，决定背景色）
 - `Rhythms`: 当前行占用节奏数（1节奏=2拍，标准8拍=4）
+- `StepActionName`: 每步显示的动作名（可选，同一组内每行可显示不同名称）
 - `MainHint`: 主标题（显示在屏幕上方）
 - `SubHint`: 副标题（显示在主标题下方）
 
@@ -212,16 +215,17 @@ MAX_8BEATS = 16  # 只生成前N个8拍（预览用）
 
 | 字段名 | 类型 | 必填 | 说明 |
 |--------|------|------|------|
-| **ActionName** | 字符串 | ✅ | 动作名称（同名称+Type视为一组） |
+| **ActionName** | 字符串 | ✅ | 动作组名称（同名称+Type视为一组） |
 | **Type** | 整数 | ✅ | 动作组总8拍数（2=白,4=黄,8=红,决定背景色） |
 | **Rhythms** | 整数 | ✅ | 当前行占用节奏数（1节奏=2拍，标准8拍=4） |
+| **StepActionName** | 字符串 | 可选 | 每步显示的动作名（不影响Type计数） |
 | **MainHint** | 字符串 | 可选 | 主标题/口令 |
 | **SubHint** | 字符串 | 可选 | 副标题/细节提示 |
 | **IsPreview** | 布尔 | 可选 | 是否为预告行（显示NEXT字样） |
 | **NextActionName** | 字符串 | 条件 | IsPreview=TRUE时必填，下一个动作名 |
 | **RhythmAlert** | 布尔 | 可选 | 是否在该行开始前4拍闪烁橙色预警 |
 
-**详细文档**：参见 README.md 后半部分的完整字段规范。
+**详细文档**：参见 [Excel编排表字段规范](#excel编排表字段规范详细版) 章节。
 
 ---
 
@@ -274,14 +278,56 @@ ActionName=深蹲组合, Type=4
 验证: (4+4+2+6)/4 = 4 = Type ✅
 ```
 
-#### 3. 提示文字字段
+#### 3. 动作名称字段
+
+| 字段 | 作用 | 使用场景 |
+|------|------|----------|
+| **ActionName** | 动作组名称（用于分组） | 同名的多行视为一组，Type决定组内8拍数 |
+| **StepActionName** | 每步显示的动作名（可选） | 同一个ActionName内，每行可显示不同的动作名，不影响Type计数 |
+
+**StepActionName 使用示例**：
+```excel
+ActionName=深蹲+弓步蹲组合, Type=8, StepActionName=4次半程深蹲
+ActionName=深蹲+弓步蹲组合, Type=8, StepActionName=4次弓步蹲
+ActionName=深蹲+弓步蹲组合, Type=8, StepActionName=4次半程深蹲
+...
+```
+显示效果：
+```
+处理: 4次半程深蹲 [1/8] (3.7s)
+处理: 4次弓步蹲 [2/8] (3.7s)
+处理: 4次半程深蹲 [3/8] (3.7s)
+...
+```
+
+#### 4. MainHint 倒数显示
+
+**触发条件**：
+- MainHint 是纯数字（如 `4321`、`3210`、`54321`）
+- 数字位数能被 Rhythms 整除
+
+**效果**：将每个数字依次显示，实现倒数效果
+
+**示例**：
+```excel
+MainHint=4321, Rhythms=4  →  依次显示: 4 → 3 → 2 → 1（每个1个rhythm）
+MainHint=432, Rhythms=6   →  依次显示: 4 → 3 → 2（每个2个rhythm）
+MainHint=4321, Rhythms=8  →  依次显示: 4 → 3 → 2 → 1（每个2个rhythm）
+```
+
+**非倒数模式**（以下情况保持原样显示）：
+- MainHint 包含非数字字符（如 "深蹲4次"）
+- 只有1位数字（如 "4"）
+- 数字位数不能被 Rhythms 整除（如 MainHint=4321, Rhythms=6）
+
+#### 4. 提示文字字段
 
 | 字段 | 显示位置 | 字体大小 | 用途 |
 |------|----------|----------|------|
 | **MainHint** | 屏幕中上部 | 主标题大小 | 主口令/节拍计数 |
 | **SubHint** | 主标题下方 | 副标题大小 | 动作细节/安全提示 |
 
-#### 4. 预告与预警字段
+#### 5. 预告与预警字段
 
 **IsPreview + NextActionName**：
 - 触发：该行显示半透明遮罩层，提示下一个动作
@@ -295,16 +341,20 @@ ActionName=深蹲组合, Type=4
 
 ## 完整填写示例
 
-| ActionName | Type | Rhythms | MainHint | SubHint | IsPreview | NextActionName | RhythmAlert |
-|-----------|------|---------|---------|---------|-----------|---------------|-------------|
-| 预先提示 | 4 | 4 | 双脚与肩同宽 | 脚尖向前 | FALSE | | TRUE |
-| 单次深蹲+弓步蹲 | 4 | 4 | 右腿往后一大步 | 回到深蹲 | FALSE | | TRUE |
-| 4次半程深蹲+弓步蹲 | 8 | 4 | 深蹲4｡ 3｡ 2｡ 1｡ | 右腿向后 | FALSE | | TRUE |
+| ActionName | Type | Rhythms | StepActionName | MainHint | SubHint | IsPreview | NextActionName | RhythmAlert |
+|-----------|------|---------|----------------|---------|---------|-----------|---------------|-------------|
+| 预先提示 | 4 | 4 | | 双脚与肩同宽 | 脚尖向前 | FALSE | | TRUE |
+| 深蹲+弓步蹲 | 8 | 4 | 4次半程深蹲 | | | FALSE | | TRUE |
+| 深蹲+弓步蹲 | 8 | 4 | 4次弓步蹲 | | | FALSE | | TRUE |
+| 深蹲+弓步蹲 | 8 | 4 | 4次半程深蹲 | | | FALSE | | TRUE |
+| 深蹲+弓步蹲 | 8 | 4 | 4次弓步蹲 | | | FALSE | | TRUE |
 
 **颜色对应**：
 - 白色背景 (Type=2)：黑色文字
 - 黄色背景 (Type=4)：黑色文字  
 - 红色背景 (Type=8)：白色文字
+- 橙色背景 (Type=6)：黑色文字
+- 紫色背景 (Type=10)：白色文字
 
 ---
 
@@ -312,117 +362,33 @@ ActionName=深蹲组合, Type=4
 
 ### 批量生成多个视频
 
-```bash
-#!/bin/bash
-# batch_generate.sh
+编辑脚本顶部的 `BATCH_CONFIGS`：
 
-for music in music/buttScaler23/*.mp3; do
+```python
+BATCH_CONFIGS = [
+    {"music": "music/section1.mp3", "excel": "excel/config1.xlsx", "output": "video1.mp4"},
+    {"music": "music/section2.mp3", "excel": "excel/config2.xlsx", "output": "video2.mp4"},
+]
+```
+
+或使用 shell 批量处理：
+```bash
+for music in music/*.mp3; do
     filename=$(basename "$music" .mp3)
-    echo "生成: $filename"
-    nohup python -c "
-import sys
-sys.path.insert(0, '.')
-import generate_video as gv
-gv.MUSIC_PATH = '$music'
-gv.OUTPUT_DIR = 'output/buttScaler23'
-gen = gv.FitnessVideoGenerator(gv.MUSIC_PATH, gv.EXCEL_PATH)
-gen.generate()
-" > "logs/${filename}.log" 2>&1 &
+    nohup python generate_video.py > "logs/${filename}.log" 2>&1 &
 done
 ```
 
-### 自定义分辨率
+### 自定义配置
 
-编辑脚本中的配置：
+编辑脚本顶部的常量：
 ```python
-VIDEO_WIDTH = 1920   # 修改宽度
-VIDEO_HEIGHT = 1080  # 修改高度
-```
+# 分辨率
+VIDEO_WIDTH = 1920
+VIDEO_HEIGHT = 1080
 
-### 调整字幕大小
-
-编辑脚本中的配置：
-```python
-MAIN_FONT_SIZE = 100  # 主标题字体大小
-SUB_FONT_SIZE = 60    # 副标题字体大小
-```
-
----
-
-## 📋 后台运行教程（详细版）
-
-### 为什么需要后台运行？
-
-视频生成耗时较长（1分钟视频约需1-2分钟生成），后台运行可以：
-- ✅ 关闭终端后继续生成
-- ✅ 同时生成多个视频
-- ✅ 记录完整日志便于排查问题
-
-### 后台运行命令详解
-
-```bash
-# 1. 基础命令结构
-nohup [命令] > [日志文件] 2>&1 &
-
-# 2. 各部分的含义
-nohup      # no hang up，终端关闭后继续运行
-> file.log # 标准输出（正常信息）写入日志文件
-2>&1       # 标准错误（报错信息）也写入日志文件
-&          # 后台运行
-
-# 3. 完整示例
-nohup python generate_video.py > generate_video.log 2>&1 &
-```
-
-### 管理后台任务
-
-```bash
-# 查看所有后台运行的Python进程
-ps aux | grep python | grep -v grep
-
-# 只查看视频生成进程
-ps aux | grep generate_video | grep -v grep
-
-# 查看日志（实时更新）
-tail -f generate_video.log
-
-# 查看日志（最后20行）
-tail -20 generate_video.log
-
-# 停止特定进程（通过PID）
-kill 12345  # 将12345替换为实际的进程ID
-
-# 停止所有视频生成进程
-pkill -f generate_video.py
-
-# 查看日志文件大小（判断是否还在写入）
-ls -lh *.log
-```
-
-### 典型工作流
-
-```bash
-# 1. 激活虚拟环境（如果使用）
-cd /path/to/project
-source venv/bin/activate
-
-# 2. 启动后台生成
-nohup python generate_preview.py > preview.log 2>&1 &
-
-# 3. 记录进程ID
-# 输出类似: [1] 12345
-
-# 4. 查看实时进度
-tail -f preview.log
-
-# 5. 按 Ctrl+C 退出日志查看（不会停止生成）
-
-# 6. 过一会儿检查是否完成
-ps aux | grep generate_preview | grep -v grep
-# 如果没有输出，说明已完成
-
-# 7. 查看生成的视频
-ls -lh output/buttScaler23/*.mp4
+# 字体大小（iPad版）
+# MainHint=160px, SubHint=100px, ActionName=80px
 ```
 
 ---
@@ -442,6 +408,6 @@ MIT License - 可自由修改用于商业团课视频制作。
 
 ---
 
-**文档版本**: v2.0  
-**更新日期**: 2026-03-24  
+**文档版本**: v2.1  
+**更新日期**: 2026-04-09  
 **适用代码版本**: moviepy 2.2.x + librosa 0.11.x
