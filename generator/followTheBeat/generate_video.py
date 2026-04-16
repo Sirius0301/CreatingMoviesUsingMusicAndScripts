@@ -17,56 +17,56 @@ from typing import List, Tuple, Dict
 # 按顺序依次处理，一次处理一个
 BATCH_CONFIGS = [
     # {
-    #     "music": "music/buttScaler23/01 I Just Might.mp3",
-    #     "excel": "excel/butterScaler/butterScaler23-Section01.xlsx",
+    #     "music": "../../music/buttScaler23/01 I Just Might.mp3",
+    #     "excel": "../../excel/butterScaler/butterScaler23-Section01.xlsx",
     #     "output": "butterScaler23_Section01_iPad.mp4"
     # }, 
     {
-        "music": "music/buttScaler23/02 02 ONE MORE TIME.mp3",
-        "excel": "excel/butterScaler/butterScaler23-Section02.xlsx",
+        "music": "../../music/buttScaler23/02 02 ONE MORE TIME.mp3",
+        "excel": "../../excel/butterScaler/butterScaler23-Section02.xlsx",
         "output": "butterScaler23_Section02_iPad.mp4"
     },
    # {
-    #     "music": "music/buttScaler23/03 03 Hold Up.mp3",
-    #     "excel": "excel/butterScaler/butterScaler23-Section03.xlsx",
+    #     "music": "../../music/buttScaler23/03 03 Hold Up.mp3",
+    #     "excel": "../../excel/butterScaler/butterScaler23-Section03.xlsx",
     #     "output": "butterScaler23_Section03_iPad.mp4"
     # }, 
     # {
-    #     "music": "music/buttScaler23/04 04 Perfect.mp3",
+    #     "music": "../../music/buttScaler23/04 04 Perfect.mp3",
     #     "excel": "excel/butterScaler/butterScaler23-Section04.xlsx",
     #     "output": "butterScaler23_Section04_iPad.mp4"
     # },
     {
-        "music": "music/buttScaler23/05 05 I WANT IT.mp3",
-        "excel": "excel/butterScaler/butterScaler23-Section05.xlsx",
+        "music": "../../music/buttScaler23/05 05 I WANT IT.mp3",
+        "excel": "../../excel/butterScaler/butterScaler23-Section05.xlsx",
         "output": "butterScaler23_Section05_iPad.mp4"
     }, 
     {
-        "music": "music/buttScaler23/06 06 Lose Control.mp3",
-        "excel": "excel/butterScaler/butterScaler23-Section06.xlsx",
+        "music": "../../music/buttScaler23/06 06 Lose Control.mp3",
+        "excel": "../../excel/butterScaler/butterScaler23-Section06.xlsx",
         "output": "butterScaler23_Section06_iPad.mp4"
     },
     # {
-    #     "music": "music/buttScaler23/07 07 Fame is a Gun.mp3",
-    #     "excel": "excel/butterScaler/butterScaler23-Section07.xlsx",
+    #     "music": "../../music/buttScaler23/07 07 Fame is a Gun.mp3",
+    #     "excel": "../../excel/butterScaler/butterScaler23-Section07.xlsx",
     #     "output": "butterScaler23_Section07_iPad.mp4"
     # },
     # {
-    #     "music": "music/buttScaler23/08 08 南京恋爱通告.mp3",
-    #     "excel": "excel/butterScaler/butterScaler23-Section08.xlsx",
+    #     "music": "../../music/buttScaler23/08 08 南京恋爱通告.mp3",
+    #     "excel": "../../excel/butterScaler/butterScaler23-Section08.xlsx",
     #     "output": "butterScaler23_Section08_iPad.mp4"
     # },
     # {
-    #     "music": "music/buttScaler23/09 B06 Spring Girl.mp3",
-    #     "excel": "excel/butterScaler/butterScaler23-Section09.xlsx",
+    #     "music": "../../music/buttScaler23/09 B06 Spring Girl.mp3",
+    #     "excel": "../../excel/butterScaler/butterScaler23-Section09.xlsx",
     #     "output": "butterScaler23_Section09_iPad.mp4"
     # },
 ]
 
-DEFAULT_MUSIC_PATH = "music/buttScaler23/06 06 Lose Control.mp3"
-DEFAULT_EXCEL_PATH = "excel/butterScaler/butterScaler23-Section06.xlsx"
-OUTPUT_DIR = "output/buttScaler23"
-FONT_PATH = "fonts/SourceHanSansHWSC-Bold.otf"
+DEFAULT_MUSIC_PATH = "../../music/buttScaler23/06 06 Lose Control.mp3"
+DEFAULT_EXCEL_PATH = "../../excel/butterScaler/butterScaler23-Section06.xlsx"
+OUTPUT_DIR = "../../output/buttScaler23"
+FONT_PATH = "../../fonts/SourceHanSansHWSC-Bold.otf"
 
 VIDEO_WIDTH = 1080
 VIDEO_HEIGHT = 1920

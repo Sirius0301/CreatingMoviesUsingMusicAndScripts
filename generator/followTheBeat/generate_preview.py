@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-iPad 横屏视频生成器 - 完整版 (1920x1080)
-支持批量处理多个音乐+Excel组合
+生成 1分钟预览视频 - 竖屏 1080x1920
+功能与 generate_video.py 完全一致，只生成前1分钟
+使用 temp-audio.m4a 和 temp-excel.xlsx
 """
 import librosa
 import pandas as pd
@@ -12,66 +13,19 @@ import os
 from datetime import datetime
 from typing import List, Tuple, Dict
 
-# ==================== 批量处理配置 ====================
-# 配置列表：每个元素包含 music_path, excel_path, output_name
-# 按顺序依次处理，一次处理一个
-BATCH_CONFIGS = [
-    # {
-    #     "music": "music/buttScaler23/01 I Just Might.mp3",
-    #     "excel": "excel/butterScaler/butterScaler23-Section01.xlsx",
-    #     "output": "butterScaler23_Section01_iPad.mp4"
-    # }, 
-    {
-        "music": "music/buttScaler23/02 02 ONE MORE TIME.mp3",
-        "excel": "excel/butterScaler/butterScaler23-Section02.xlsx",
-        "output": "butterScaler23_Section02_iPad.mp4"
-    },
-   # {
-    #     "music": "music/buttScaler23/03 03 Hold Up.mp3",
-    #     "excel": "excel/butterScaler/butterScaler23-Section03.xlsx",
-    #     "output": "butterScaler23_Section03_iPad.mp4"
-    # }, 
-    # {
-    #     "music": "music/buttScaler23/04 04 Perfect.mp3",
-    #     "excel": "excel/butterScaler/butterScaler23-Section04.xlsx",
-    #     "output": "butterScaler23_Section04_iPad.mp4"
-    # },
-    {
-        "music": "music/buttScaler23/05 05 I WANT IT.mp3",
-        "excel": "excel/butterScaler/butterScaler23-Section05.xlsx",
-        "output": "butterScaler23_Section05_iPad.mp4"
-    }, 
-    {
-        "music": "music/buttScaler23/06 06 Lose Control.mp3",
-        "excel": "excel/butterScaler/butterScaler23-Section06.xlsx",
-        "output": "butterScaler23_Section06_iPad.mp4"
-    },
-    # {
-    #     "music": "music/buttScaler23/07 07 Fame is a Gun.mp3",
-    #     "excel": "excel/butterScaler/butterScaler23-Section07.xlsx",
-    #     "output": "butterScaler23_Section07_iPad.mp4"
-    # },
-    # {
-    #     "music": "music/buttScaler23/08 08 南京恋爱通告.mp3",
-    #     "excel": "excel/butterScaler/butterScaler23-Section08.xlsx",
-    #     "output": "butterScaler23_Section08_iPad.mp4"
-    # },
-    # {
-    #     "music": "music/buttScaler23/09 B06 Spring Girl.mp3",
-    #     "excel": "excel/butterScaler/butterScaler23-Section09.xlsx",
-    #     "output": "butterScaler23_Section09_iPad.mp4"
-    # },
-]
+# ==================== 配置 ====================
+TEMP_MUSIC_PATH = "temp-audio.m4a"
+TEMP_EXCEL_PATH = "temp-excel.xlsx"
+DEFAULT_MUSIC_PATH = "../../music/buttScaler23/02 02 ONE MORE TIME.mp3"
+DEFAULT_EXCEL_PATH = "../../excel/butterScaler/butterScaler23-Section02.xlsx"
+OUTPUT_DIR = "../../output/buttScaler23"
+FONT_PATH = "../../fonts/SourceHanSansHWSC-Bold.otf"
 
-DEFAULT_MUSIC_PATH = "music/buttScaler23/06 06 Lose Control.mp3"
-DEFAULT_EXCEL_PATH = "excel/butterScaler/butterScaler23-Section06.xlsx"
-OUTPUT_DIR = "output/buttScaler23"
-FONT_PATH = "fonts/SourceHanSansHWSC-Bold.otf"
-
-VIDEO_WIDTH = 1920
-VIDEO_HEIGHT = 1080
+VIDEO_WIDTH = 1080
+VIDEO_HEIGHT = 1920
 BEATS_PER_RHYTHM = 2
 ALERT_BEATS = 4
+MAX_DURATION = 60  # 最大预览时长 60秒
 
 def get_type_color(type_num):
     color_map = {
@@ -84,7 +38,7 @@ def get_type_color(type_num):
 def get_text_color(type_num):
     return 'black' if type_num in [2, 4, 6] else 'white'
 
-class iPadVideoGenerator:
+class PreviewVideoGenerator:
     def __init__(self, music_path, excel_path, output_path):
         self.music_path = music_path
         self.excel_path = excel_path
@@ -95,14 +49,14 @@ class iPadVideoGenerator:
         self.audio_duration = 0
         
     def analyze_music(self):
-        print(f"🎵 分析音频: {self.music_path}")
+        print(f"🎵 分析音频: {os.path.basename(self.music_path)}")
         y, sr = librosa.load(self.music_path, sr=None)
-        self.audio_duration = len(y) / sr
+        self.audio_duration = min(len(y) / sr, MAX_DURATION)  # 限制为60秒
         tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr, start_bpm=128)
         self.bpm = float(tempo[0]) if hasattr(tempo, '__len__') else float(tempo)
         self.beat_times = librosa.frames_to_time(beat_frames, sr=sr)
         max_beats = int(self.audio_duration / 60 * self.bpm)
-        print(f"✅ BPM: {self.bpm:.1f}, 音频时长: {self.audio_duration:.1f}s, 最大节拍数: {max_beats}")
+        print(f"✅ BPM: {self.bpm:.1f}, 预览时长: {self.audio_duration:.1f}s, 最大节拍数: {max_beats}")
         
     def get_beat_time(self, beat_idx):
         if beat_idx < 0:
@@ -115,14 +69,14 @@ class iPadVideoGenerator:
         beat_duration = 60 / self.bpm if self.bpm > 0 else 0.5
         return last_time + (beat_idx - len(self.beat_times) + 1) * beat_duration
         
-    def create_text_clip(self, text, fontsize, color, duration, start, pos_y, max_chars=15, min_lines=1):
+    def create_text_clip(self, text, fontsize, color, duration, start, pos_y, max_chars=15):
         # 限制最多显示15个字
         if len(text) > max_chars:
             text = text[:max_chars]
-        lines = max(min_lines, text.count('\n') + 1)
+        lines = text.count('\n') + 1
         return TextClip(
             text=text, font_size=fontsize, color=color, font=FONT_PATH,
-            method='caption', size=(int(VIDEO_WIDTH * 0.95), int(fontsize * lines * 1.6)),
+            method='caption', size=(int(VIDEO_WIDTH * 0.95), int(fontsize * lines * 3.2)),
             text_align='center', horizontal_align='center', vertical_align='center'
         ).with_duration(duration).with_start(start).with_position(('center', VIDEO_HEIGHT * pos_y))
     
@@ -131,9 +85,9 @@ class iPadVideoGenerator:
         bg = FadeIn(0.1).apply(bg)
         bg = bg.with_opacity(0.9)
         text_content = "节奏变化！\n" + (f"即将: {next_action}" if next_action else "")
-        # 智能估算实际行数：节奏变化！占1行，动作名称按每8个字符一行估算（iPad横屏更宽）
+        # 智能估算实际行数：节奏变化！占1行，动作名称按每6个字符一行估算
         action_text = next_action if next_action else ""
-        action_lines = max(1, (len(action_text) + 7) // 8) if action_text else 0
+        action_lines = max(1, (len(action_text) + 5) // 6) if action_text else 0
         estimated_lines = 1 + action_lines  # 节奏变化！+ 动作名称的实际行数
         txt = TextClip(
             text=text_content, font_size=100, color='white', font=FONT_PATH, method='caption',
@@ -146,13 +100,13 @@ class iPadVideoGenerator:
     def create_preview_overlay(self, next_action, duration, start):
         overlay = ColorClip(size=(VIDEO_WIDTH, VIDEO_HEIGHT), color=(0, 0, 0), duration=duration).with_start(start).with_opacity(0.4)
         # 限制动作名称长度，防止文本过长
-        max_chars = 16  # iPad横屏可以显示更多字符
+        max_chars = 12
         display_action = next_action if len(next_action) <= max_chars else next_action[:max_chars-2] + "..."
         preview_text = f"NEXT\n{display_action}"
-        # 估算实际行数：NEXT占1行，动作名称按每8个字符一行估算（iPad横屏更宽）
-        action_lines = max(1, (len(display_action) + 7) // 8)  # 向上取整
+        # 估算实际行数：NEXT占1行，动作名称按每6个字符一行估算（中文在120字号下大约占这么宽）
+        action_lines = max(1, (len(display_action) + 5) // 6)  # 向上取整
         estimated_lines = 1 + action_lines  # NEXT + 动作名称的实际行数
-        # 高度倍数增加到2.2，确保3-4行文本都能完整显示
+        # 高度倍数增加到2.5，确保3-4行文本都能完整显示
         preview_txt = TextClip(
             text=preview_text, font_size=120, color='#FFD700', font=FONT_PATH,
             method='caption', size=(int(VIDEO_WIDTH * 0.95), int(120 * estimated_lines * 2.2)), text_align='center',
@@ -170,7 +124,7 @@ class iPadVideoGenerator:
         return [overlay, preview_txt, countdown]
 
     def generate(self):
-        """生成完整版视频（随音乐时长）"""
+        """生成1分钟预览视频"""
         self.analyze_music()
         df = pd.read_excel(self.excel_path)
         print(f"📊 读取到 {len(df)} 行编排数据")
@@ -207,9 +161,8 @@ class iPadVideoGenerator:
         # 计算音频能支持的最大beat数，超出部分自动截断
         audio_max_beats = int(self.audio_duration / 60 * self.bpm)
         if current_beat > audio_max_beats:
-            print(f"⚠️ 警告: Excel需要{current_beat}beats，音频只支持{audio_max_beats}beats，将自动截断")
+            print(f"⚠️ 警告: Excel需要{current_beat}beats，预览只支持{audio_max_beats}beats，将自动截断")
         
-        actual_end_time = 0
         for i, item in enumerate(timeline):
             row = item['row']
             start_beat = item['start_beat']
@@ -219,7 +172,7 @@ class iPadVideoGenerator:
             end_time = self.get_beat_time(end_beat)
             duration = end_time - start_time
             
-            # 检查是否超出音频时长，超出则跳过
+            # 检查是否超出预览时长，超出则跳过
             if start_time >= self.audio_duration:
                 continue
             
@@ -227,9 +180,7 @@ class iPadVideoGenerator:
             if end_time > self.audio_duration:
                 end_time = self.audio_duration
                 duration = end_time - start_time
-                print(f"  截断: 第{i+1}行部分超出音频时长，已截断")
-            
-            actual_end_time = end_time
+                print(f"  截断: 第{i+1}行部分超出预览时长，已截断")
             
             action_name = str(row['ActionName'])
             type_num = int(row['Type'])
@@ -270,29 +221,25 @@ class iPadVideoGenerator:
                 for idx, char in enumerate(chars):
                     char_start = start_time + idx * chars_per_rhythm * beat_duration
                     char_duration = chars_per_rhythm * beat_duration
-                    char_clip = self.create_text_clip(char, 160, text_color, char_duration, char_start, -0.02)
+                    char_clip = self.create_text_clip(char, 160, text_color, char_duration, char_start, 0.18)
                     self.clips.append(char_clip)
             else:
-                # MainHint - 贴顶显示，继续上移增加间距
-                main_clip = self.create_text_clip(main_hint, 160, text_color, duration, start_time, -0.02, min_lines=2)
+                main_clip = self.create_text_clip(main_hint, 160, text_color, duration, start_time, 0.18)
                 self.clips.append(main_clip)
             
             # SubHint 和 Type 分开显示，增加间距
             if sub_hint:
-                # SubHint - MainHint下方，预留2行空间，增加间距
-                sub_hint_clip = self.create_text_clip(sub_hint, 100, text_color, duration, start_time, 0.38, min_lines=2)
+                sub_hint_clip = self.create_text_clip(sub_hint, 100, text_color, duration, start_time, 0.42)
                 self.clips.append(sub_hint_clip)
                 type_display = f"{idx_in_group}/{type_num}"
-                # Type - SubHint下方，增加间距
-                type_clip = self.create_text_clip(type_display, 100, text_color, duration, start_time, 0.54)
+                type_clip = self.create_text_clip(type_display, 100, text_color, duration, start_time, 0.58)
                 self.clips.append(type_clip)
             else:
                 type_display = f"{idx_in_group}/{type_num}"
-                # Type - MainHint下方（无SubHint时）
-                type_clip = self.create_text_clip(type_display, 100, text_color, duration, start_time, 0.38)
+                type_clip = self.create_text_clip(type_display, 100, text_color, duration, start_time, 0.52)
                 self.clips.append(type_clip)
             
-            # ActionName - Type下方，继续下移增加间距
+            # 在预览区域上方显示 ActionName
             action_name_clip = self.create_text_clip(display_action_name, 80, '#808080', duration, start_time, 0.72)
             self.clips.append(action_name_clip)
             
@@ -326,57 +273,40 @@ class iPadVideoGenerator:
         print(f"✅ 完成: {self.output_path}")
         return self.output_path
 
-def process_single(music_path, excel_path, output_name):
-    """处理单个视频"""
-    output_path = os.path.join(OUTPUT_DIR, output_name)
-    gen = iPadVideoGenerator(music_path, excel_path, output_path)
-    return gen.generate()
+def get_music_path():
+    """获取音乐文件路径，优先使用临时文件"""
+    if os.path.exists(TEMP_MUSIC_PATH):
+        print(f"📝 使用临时音乐: {TEMP_MUSIC_PATH}")
+        return TEMP_MUSIC_PATH
+    print(f"📝 使用默认音乐: {DEFAULT_MUSIC_PATH}")
+    return DEFAULT_MUSIC_PATH
+
+def get_excel_path():
+    """获取Excel文件路径，优先使用临时文件"""
+    if os.path.exists(TEMP_EXCEL_PATH):
+        print(f"📝 使用临时Excel: {TEMP_EXCEL_PATH}")
+        return TEMP_EXCEL_PATH
+    print(f"📝 使用默认Excel: {DEFAULT_EXCEL_PATH}")
+    return DEFAULT_EXCEL_PATH
 
 def main():
     print("=" * 60)
-    print("🎬 iPad 横屏视频生成器 - 完整版 (1920x1080)")
+    print("🎬 1分钟预览视频生成器 (1080x1920)")
     print("=" * 60)
     
-    if BATCH_CONFIGS:
-        print(f"\n📋 批量处理模式: 共 {len(BATCH_CONFIGS)} 个任务")
-        print("=" * 60)
-        
-        for i, config in enumerate(BATCH_CONFIGS, 1):
-            print(f"\n[{i}/{len(BATCH_CONFIGS)}] 开始处理...")
-            print("-" * 40)
-            
-            music_path = config["music"]
-            excel_path = config["excel"]
-            output_name = config["output"]
-            
-            if not os.path.exists(music_path):
-                print(f"⚠️ 跳过: 音乐文件不存在 {music_path}")
-                continue
-            if not os.path.exists(excel_path):
-                print(f"⚠️ 跳过: Excel文件不存在 {excel_path}")
-                continue
-            
-            try:
-                process_single(music_path, excel_path, output_name)
-                print(f"✅ [{i}/{len(BATCH_CONFIGS)}] 完成: {output_name}")
-            except Exception as e:
-                print(f"❌ [{i}/{len(BATCH_CONFIGS)}] 失败: {e}")
-                continue
-        
-        print("\n" + "=" * 60)
-        print("🎉 批量处理完成!")
-    else:
-        print("\n📋 单文件模式")
-        print("-" * 40)
-        if not os.path.exists(DEFAULT_MUSIC_PATH):
-            print(f"❌ 错误: 音乐文件不存在 {DEFAULT_MUSIC_PATH}")
-            return
-        if not os.path.exists(DEFAULT_EXCEL_PATH):
-            print(f"❌ 错误: Excel文件不存在 {DEFAULT_EXCEL_PATH}")
-            return
-        
-        output_name = f"fitness_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp4"
-        process_single(DEFAULT_MUSIC_PATH, DEFAULT_EXCEL_PATH, output_name)
+    music_path = get_music_path()
+    excel_path = get_excel_path()
+    
+    if not os.path.exists(music_path):
+        print(f"❌ 错误: 音乐文件不存在 {music_path}")
+        return
+    if not os.path.exists(excel_path):
+        print(f"❌ 错误: Excel文件不存在 {excel_path}")
+        return
+    
+    output_path = os.path.join(OUTPUT_DIR, "preview.mp4")
+    gen = PreviewVideoGenerator(music_path, excel_path, output_path)
+    gen.generate()
 
 if __name__ == "__main__":
     main()

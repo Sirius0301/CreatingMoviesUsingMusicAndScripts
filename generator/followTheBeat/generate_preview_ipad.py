@@ -18,21 +18,21 @@ from typing import List, Tuple, Dict
 # 按顺序依次处理，一次处理一个
 BATCH_CONFIGS = [
     {
-        "music": "music/buttScaler23/02 02 ONE MORE TIME.mp3",
-        "excel": "excel/butterScaler/butterScaler23-Section02.xlsx",
-        "output": "butterScaler23_Section02_iPad_preview.mp4"
+        "music": "../../music/buttScaler23/02 02 ONE MORE TIME.mp3",
+        "excel": "../../excel/butterScaler/butterScaler23-Section02.xlsx",
+        "output": "../../output/buttScaler23/butterScaler23_Section02_iPad_preview.mp4"
     },
     # {
-    #     "music": "music/buttScaler23/06 06 Lose Control.mp3",
-    #     "excel": "excel/butterScaler/butterScaler23-Section06.xlsx",
-    #     "output": "butterScaler23_Section06_iPad_preview.mp4"
+    #     "music": "../../music/buttScaler23/06 06 Lose Control.mp3",
+    #     "excel": "../../excel/butterScaler/butterScaler23-Section06.xlsx",
+    #     "output": "../../output/buttScaler23/butterScaler23_Section06_iPad_preview.mp4"
     # },
 ]
 
-DEFAULT_MUSIC_PATH = "music/buttScaler23/06 06 Lose Control.mp3"
-DEFAULT_EXCEL_PATH = "excel/butterScaler/butterScaler23-Section06.xlsx"
-OUTPUT_DIR = "output/buttScaler23"
-FONT_PATH = "fonts/SourceHanSansHWSC-Bold.otf"
+DEFAULT_MUSIC_PATH = "../../music/buttScaler23/06 06 Lose Control.mp3"
+DEFAULT_EXCEL_PATH = "../../excel/butterScaler/butterScaler23-Section06.xlsx"
+OUTPUT_DIR = "../../output/buttScaler23"
+FONT_PATH = "../../fonts/SourceHanSansHWSC-Bold.otf"
 
 VIDEO_WIDTH = 1920
 VIDEO_HEIGHT = 1080
