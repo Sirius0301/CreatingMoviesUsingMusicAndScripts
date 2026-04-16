@@ -17,8 +17,8 @@ from typing import List, Tuple, Dict
 # 按顺序依次处理，一次处理一个
 BATCH_CONFIGS = [
     # {
-    #     "music": "music/buttScaler23/01 I Just Might.mp3",
-    #     "excel": "excel/butterScaler/butterScaler23-Section01.xlsx",
+    #     "music": "../../music/buttScaler23/01 I Just Might.mp3",
+    #     "excel": "../../excel/butterScaler/butterScaler23-Section01.xlsx",
     #     "output": "butterScaler23_Section01_iPad.mp4"
     # }, 
     {
