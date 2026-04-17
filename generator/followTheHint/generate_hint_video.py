@@ -6,6 +6,7 @@
 
 import re
 import os
+import sys
 
 from moviepy import AudioFileClip, ColorClip, CompositeVideoClip, TextClip
 
@@ -121,11 +122,13 @@ def parse_markdown(md_path):
 
 
 class HintVideoGenerator:
-    def __init__(self, music_path, actions, output_path, expected_duration=None):
+    def __init__(self, music_path, actions, output_path, expected_duration=None, preview=False):
         self.music_path = music_path
         self.actions = actions
         self.output_path = output_path
         self.expected_duration = expected_duration  # 秒
+        self.preview = preview
+        self.max_duration = 60.0 if preview else float('inf')
         self.clips = []
         self.audio_duration = 0
 
@@ -133,8 +136,12 @@ class HintVideoGenerator:
         print(f"🎵 分析音频: {self.music_path}")
         with AudioFileClip(self.music_path) as audio:
             self.audio_duration = audio.duration
-        print(f"✅ 音频时长: {self.audio_duration:.1f}s")
-        if self.expected_duration and abs(self.audio_duration - self.expected_duration) > 5:
+        if self.preview:
+            self.audio_duration = min(self.audio_duration, self.max_duration)
+            print(f"✅ 预览模式，音频时长限制为: {self.audio_duration:.1f}s")
+        else:
+            print(f"✅ 音频时长: {self.audio_duration:.1f}s")
+        if self.expected_duration and not self.preview and abs(self.audio_duration - self.expected_duration) > 5:
             print(f"⚠️ 警告: 标注时长 {self.expected_duration:.1f}s 与实际时长 {self.audio_duration:.1f}s 偏差超过 5 秒")
 
     def create_text_clip(self, text, fontsize, color, duration, start, pos_y, max_chars=25):
@@ -143,7 +150,7 @@ class HintVideoGenerator:
         lines = text.count('\n') + 1
         return TextClip(
             text=text, font_size=fontsize, color=color, font=FONT_PATH,
-            method='caption', size=(int(VIDEO_WIDTH * 0.95), int(fontsize * lines * 1.8)),
+            method='caption', size=(int(VIDEO_WIDTH * 0.95), int(fontsize * lines * 2.6)),
             text_align='center', horizontal_align='center', vertical_align='center'
         ).with_duration(duration).with_start(start).with_position(('center', VIDEO_HEIGHT * pos_y))
 
@@ -174,6 +181,8 @@ class HintVideoGenerator:
     def generate(self):
         self.analyze_music()
         print(f"📋 共 {len(self.actions)} 个动作")
+        if self.preview:
+            print("👁️ 预览模式: 只生成前 60 秒")
 
         last_end_time = 0
 
@@ -182,14 +191,22 @@ class HintVideoGenerator:
             duration_sec = time_to_seconds(action['duration'])
             end_sec = start_sec + duration_sec
 
-            # 截断超出音频时长的部分
-            if start_sec >= self.audio_duration:
-                print(f"  跳过: {action['name']} (开始时间 {start_sec:.1f}s 已超出音频时长)")
+            # 预览模式：跳过 60 秒之后的动作
+            if self.preview and start_sec >= self.max_duration:
+                print(f"  跳过: {action['name']} (开始时间 {start_sec:.1f}s 已超出预览范围)")
                 continue
+
+            # 截断超出音频时长或预览时长的部分
             if end_sec > self.audio_duration:
                 end_sec = self.audio_duration
                 duration_sec = end_sec - start_sec
                 print(f"  截断: {action['name']} 部分超出音频时长，已截断至 {end_sec:.1f}s")
+
+            # 预览模式：如果动作跨 60 秒边界，截断
+            if self.preview and end_sec > self.max_duration:
+                end_sec = self.max_duration
+                duration_sec = end_sec - start_sec
+                print(f"  截断: {action['name']} 部分超出预览范围，已截断至 {end_sec:.1f}s")
 
             last_end_time = end_sec
             bg_color = get_bg_color(i)
@@ -222,7 +239,7 @@ class HintVideoGenerator:
 
             # 动作名称显示在底部
             action_name_clip = self.create_text_clip(
-                action['name'], fontsize=60, color='#666666',
+                action['name'], fontsize=60, color='black',
                 duration=duration_sec, start=start_sec, pos_y=0.78
             )
             self.clips.append(action_name_clip)
@@ -243,7 +260,7 @@ class HintVideoGenerator:
             bg = ColorClip(size=(VIDEO_WIDTH, VIDEO_HEIGHT), color=(255, 193, 7), duration=remaining).with_start(last_end_time)
             self.clips.append(bg)
 
-            text = "Be Happy\n😊"
+            text = "Be Happy\n( ˶ˊᵕˋ)੭♡"
             happy_clip = TextClip(
                 text=text, font_size=160, color='black', font=FONT_PATH,
                 method='caption', size=(int(VIDEO_WIDTH * 0.95), int(160 * 3)),
@@ -266,6 +283,7 @@ class HintVideoGenerator:
 
 
 def main():
+    preview = 'preview' in sys.argv[1:]
     md_file = "T2-下肢.md"
     md_path = os.path.join(MARKDOWN_DIR, md_file)
 
@@ -288,10 +306,11 @@ def main():
 
     expected_duration = time_to_seconds(music_duration_str) if music_duration_str else None
 
-    output_name = f"{section_name}_hint.mp4"
+    suffix = "_preview.mp4" if preview else "_hint.mp4"
+    output_name = f"{section_name}{suffix}"
     output_path = os.path.join(OUTPUT_DIR, output_name)
 
-    gen = HintVideoGenerator(music_path, actions, output_path, expected_duration)
+    gen = HintVideoGenerator(music_path, actions, output_path, expected_duration, preview=preview)
     gen.generate()
 
 

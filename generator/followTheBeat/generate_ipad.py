@@ -319,7 +319,7 @@ class iPadVideoGenerator:
                 self.clips.append(type_clip)
             
             # ActionName - Type下方，继续下移增加间距
-            action_name_clip = self.create_text_clip(display_action_name, 80, '#808080', duration, start_time, 0.72)
+            action_name_clip = self.create_text_clip(display_action_name, 80, '#000000', duration, start_time, 0.72)
             self.clips.append(action_name_clip)
             
             if is_preview and next_action:
