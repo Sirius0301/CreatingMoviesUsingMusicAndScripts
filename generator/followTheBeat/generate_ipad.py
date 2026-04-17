@@ -13,57 +13,6 @@ import sys
 from datetime import datetime
 from typing import List, Tuple, Dict
 
-# ==================== 批量处理配置 ====================
-# 配置列表：每个元素包含 music_path, excel_path, output_name
-# 按顺序依次处理，一次处理一个
-BATCH_CONFIGS = [
-    # {
-    #     "music": "../../music/buttScaler23/01 I Just Might.mp3",
-    #     "excel": "../../excel/butterScaler/butterScaler23-Section01.xlsx",
-    #     "output": "butterScaler23_Section01_iPad.mp4"
-    # }, 
-    {
-        "music": "../../music/buttScaler23/02 02 ONE MORE TIME.mp3",
-        "excel": "../../excel/butterScaler/butterScaler23-Section02.xlsx",
-        "output": "butterScaler23_Section02_iPad.mp4"
-    },
-#    {
-#         "music": "../../music/buttScaler23/03 03 Hold Up.mp3",
-#         "excel": "../../excel/butterScaler/butterScaler23-Section03.xlsx",
-#         "output": "butterScaler23_Section03_iPad.mp4"
-#     }, 
-#     {
-#         "music": "../../music/buttScaler23/04 04 Perfect.mp3",
-#         "excel": "../../excel/butterScaler/butterScaler23-Section04.xlsx",
-#         "output": "butterScaler23_Section04_iPad.mp4"
-#     },
-#     {
-#         "music": "../../music/buttScaler23/05 05 I WANT IT.mp3",
-#         "excel": "../../excel/butterScaler/butterScaler23-Section05.xlsx",
-#         "output": "butterScaler23_Section05_iPad.mp4"
-#     }, 
-#     {
-#         "music": "../../music/buttScaler23/06 06 Lose Control.mp3",
-#         "excel": "../../excel/butterScaler/butterScaler23-Section06.xlsx",
-#         "output": "butterScaler23_Section06_iPad.mp4"
-#     },
-    # {
-    #     "music": "../../music/buttScaler23/07 07 Fame is a Gun.mp3",
-    #     "excel": "../../excel/butterScaler/butterScaler23-Section07.xlsx",
-    #     "output": "butterScaler23_Section07_iPad.mp4"
-    # },
-    # {
-    #     "music": "../../music/buttScaler23/08 08 南京恋爱通告.mp3",
-    #     "excel": "../../excel/butterScaler/butterScaler23-Section08.xlsx",
-    #     "output": "butterScaler23_Section08_iPad.mp4"
-    # },
-    # {
-    #     "music": "../../music/buttScaler23/09 B06 Spring Girl.mp3",
-    #     "excel": "../../excel/butterScaler/butterScaler23-Section09.xlsx",
-    #     "output": "butterScaler23_Section09_iPad.mp4"
-    # },
-]
-
 DEFAULT_MUSIC_PATH = "../../music/buttScaler23/06 06 Lose Control.mp3"
 DEFAULT_EXCEL_PATH = "../../excel/butterScaler/butterScaler23-Section06.xlsx"
 OUTPUT_DIR = "../../output/buttScaler23"
@@ -359,58 +308,46 @@ def process_single(music_path, excel_path, output_name, preview=False):
     return gen.generate()
 
 def main():
+    args = [a for a in sys.argv[1:] if a != 'preview']
     preview = 'preview' in sys.argv[1:]
+
     print("=" * 60)
     print("🎬 iPad 横屏视频生成器 - 完整版 (1920x1080)")
     if preview:
         print("👁️ 预览模式: 只生成前 60 秒")
     print("=" * 60)
-    
-    if BATCH_CONFIGS:
-        print(f"\n📋 批量处理模式: 共 {len(BATCH_CONFIGS)} 个任务")
-        print("=" * 60)
-        
-        for i, config in enumerate(BATCH_CONFIGS, 1):
-            print(f"\n[{i}/{len(BATCH_CONFIGS)}] 开始处理...")
-            print("-" * 40)
-            
-            music_path = config["music"]
-            excel_path = config["excel"]
-            output_name = config["output"]
-            
-            if preview:
-                base, ext = os.path.splitext(output_name)
-                output_name = f"{base}_preview{ext}"
-            
-            if not os.path.exists(music_path):
-                print(f"⚠️ 跳过: 音乐文件不存在 {music_path}")
-                continue
-            if not os.path.exists(excel_path):
-                print(f"⚠️ 跳过: Excel文件不存在 {excel_path}")
-                continue
-            
-            try:
-                process_single(music_path, excel_path, output_name, preview=preview)
-                print(f"✅ [{i}/{len(BATCH_CONFIGS)}] 完成: {output_name}")
-            except Exception as e:
-                print(f"❌ [{i}/{len(BATCH_CONFIGS)}] 失败: {e}")
-                continue
-        
-        print("\n" + "=" * 60)
-        print("🎉 批量处理完成!")
-    else:
-        print("\n📋 单文件模式")
-        print("-" * 40)
-        if not os.path.exists(DEFAULT_MUSIC_PATH):
-            print(f"❌ 错误: 音乐文件不存在 {DEFAULT_MUSIC_PATH}")
-            return
-        if not os.path.exists(DEFAULT_EXCEL_PATH):
-            print(f"❌ 错误: Excel文件不存在 {DEFAULT_EXCEL_PATH}")
-            return
-        
+
+    print("\n📋 单文件模式")
+    print("-" * 40)
+
+    music_path = DEFAULT_MUSIC_PATH
+    excel_path = DEFAULT_EXCEL_PATH
+
+    # 支持 --music path --excel path --output name 的形式
+    if '--music' in args:
+        idx = args.index('--music')
+        music_path = args[idx + 1] if idx + 1 < len(args) else music_path
+    if '--excel' in args:
+        idx = args.index('--excel')
+        excel_path = args[idx + 1] if idx + 1 < len(args) else excel_path
+
+    output_name = None
+    if '--output' in args:
+        idx = args.index('--output')
+        output_name = args[idx + 1] if idx + 1 < len(args) else None
+
+    if not os.path.exists(music_path):
+        print(f"❌ 错误: 音乐文件不存在 {music_path}")
+        return
+    if not os.path.exists(excel_path):
+        print(f"❌ 错误: Excel文件不存在 {excel_path}")
+        return
+
+    if output_name is None:
         suffix = "_preview" if preview else ""
         output_name = f"fitness_{datetime.now().strftime('%Y%m%d_%H%M%S')}{suffix}.mp4"
-        process_single(DEFAULT_MUSIC_PATH, DEFAULT_EXCEL_PATH, output_name, preview=preview)
+
+    process_single(music_path, excel_path, output_name, preview=preview)
 
 if __name__ == "__main__":
     main()

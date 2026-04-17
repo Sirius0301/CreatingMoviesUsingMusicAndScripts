@@ -302,6 +302,35 @@ class HintVideoGenerator:
         return self.output_path
 
 
+def process_single(md_path, preview=False):
+    """处理单个 Markdown 视频生成任务"""
+    if not os.path.exists(md_path):
+        print(f"❌ Markdown 文件不存在: {md_path}")
+        return None
+
+    section_name, music_name, music_duration_str, actions = parse_markdown(md_path)
+    print(f"📖 小节: {section_name}")
+    print(f"🎵 音乐: {music_name} (标注时长: {music_duration_str})")
+
+    if not music_name:
+        print("❌ 未能从 Markdown 中解析音乐名称")
+        return None
+
+    music_path = os.path.join(MUSIC_DIR, music_name)
+    if not os.path.exists(music_path):
+        print(f"❌ 音乐文件不存在: {music_path}")
+        return None
+
+    expected_duration = time_to_seconds(music_duration_str) if music_duration_str else None
+
+    suffix = "_preview.mp4" if preview else "_hint.mp4"
+    output_name = f"{section_name}{suffix}"
+    output_path = os.path.join(OUTPUT_DIR, output_name)
+
+    gen = HintVideoGenerator(music_path, actions, output_path, expected_duration, preview=preview)
+    return gen.generate()
+
+
 def main():
     args = sys.argv[1:]
     preview = 'preview' in args
@@ -314,32 +343,7 @@ def main():
     else:
         md_file = "T2-下肢.md"
     md_path = os.path.join(MARKDOWN_DIR, md_file)
-
-    if not os.path.exists(md_path):
-        print(f"❌ Markdown 文件不存在: {md_path}")
-        return
-
-    section_name, music_name, music_duration_str, actions = parse_markdown(md_path)
-    print(f"📖 小节: {section_name}")
-    print(f"🎵 音乐: {music_name} (标注时长: {music_duration_str})")
-
-    if not music_name:
-        print("❌ 未能从 Markdown 中解析音乐名称")
-        return
-
-    music_path = os.path.join(MUSIC_DIR, music_name)
-    if not os.path.exists(music_path):
-        print(f"❌ 音乐文件不存在: {music_path}")
-        return
-
-    expected_duration = time_to_seconds(music_duration_str) if music_duration_str else None
-
-    suffix = "_preview.mp4" if preview else "_hint.mp4"
-    output_name = f"{section_name}{suffix}"
-    output_path = os.path.join(OUTPUT_DIR, output_name)
-
-    gen = HintVideoGenerator(music_path, actions, output_path, expected_duration, preview=preview)
-    gen.generate()
+    process_single(md_path, preview=preview)
 
 
 if __name__ == "__main__":
