@@ -1,415 +1,221 @@
-# 🎵 健身团课视频自动生成器 (Fitness Video Generator)
+# 🎵 健身团课视频自动生成器
 
-## 项目概述
-
-基于Python的自动化视频生成工具，根据Excel编排表自动生成带音乐节拍、彩色背景、进度字幕的健身教学视频。
-
-**核心功能：**
-- 🎼 自动分析音频BPM和节拍点（使用librosa）
-- 📊 Excel驱动课程编排（2×8/4×8/8×8拍自动配色）
-- 🎨 白/黄/红/紫多色背景区分动作组
-- 📱 多平台输出（竖屏手机/横屏iPad/横屏电视）
-- ⚡️ 后台批量生成，无需手动剪辑
+基于 Python 的自动化视频生成工具，支持两种工作流：
+1. **节拍驱动** — 根据 Excel 编排表 + 音乐节拍，生成带节奏提示的健身视频
+2. **文稿驱动** — 根据 Markdown 教学稿 + 音乐时间轴，生成带逐句提示的团课教学视频
 
 ---
 
-## 技术栈
-- **音频分析**：librosa 0.11.x（节拍检测）
-- **视频合成**：moviepy 2.2.x（剪辑、字幕、渲染）
-- **数据处理**：pandas 2.0.x（Excel读取）
-- **字体渲染**：PIL/Pillow + 思源黑体（中文支持）
+## 项目结构
 
----
-
-## 文件结构
 ```
-├── .gitignore                                    # Git忽略配置（忽略音乐/视频文件）
-├── excel                                         # 课程配置文件夹
-│   ├── butterScaler
-│   │   └── butterScaler23.xlsx                   # Excel编排表
-│   └── table-template.csv                        # CSV模板示例
-├── fonts                                         # 字体文件夹
-│   ├── SourceHanSansHWSC-Bold.otf
-│   ├── SourceHanSansHWSC-Regular.otf
-│   └── SourceHanSansSC-VF.otf                    # 推荐：可变字体
-├── generate_video.py                             # 主程序：完整视频生成（竖屏）
-├── generate_preview.py                           # 预览版：前1分钟竖屏预览
-├── generate_ipad_v2.py                           # iPad版：横屏1920x1080
-├── music                                         # 输入音乐文件夹（.gitkeep占位）
-│   └── buttScaler23
-│       └── .gitkeep
-├── output                                        # 生成结果输出（.gitkeep占位）
-│   └── buttScaler23
-│       └── .gitkeep
-├── temp-audio.m4a                                # [可选]临时音乐文件（预览用）
-├── temp-excel.xlsx                               # [可选]临时Excel文件（预览用）
-├── requirements.txt                              # Python依赖
-└── README.md                                     # 本文档
+├── generator/
+│   ├── followTheBeat/           # Excel + 音乐节拍 工作流
+│   │   ├── generate_video.py    # 竖屏 1080×1920
+│   │   ├── generate_ipad.py     # 横屏 1920×1080
+│   └── followTheHint/           # Markdown + 音乐时间轴 工作流
+│       └── generate_hint_video.py   # 横屏 1920×1080，支持 preview 参数
+├── excel/
+│   ├── butterScaler/            # Excel 编排表（节拍驱动）
+│   └── Template.xlsx            # Excel 模板
+├── markdown/
+│   ├── muscleGrowth/            # Markdown 教学稿（文稿驱动）
+│   │   ├── T1-热身.md
+│   │   └── T2-下肢.md
+│   └── Template.md              # Markdown 模板
+├── music/
+│   ├── buttScaler23/            # 节拍驱动音乐
+│   └── muscleGrowth14/          # 文稿驱动音乐
+├── output/
+│   ├── buttScaler23/            # 节拍驱动输出
+│   └── muscleGrowth14/          # 文稿驱动输出
+├── fonts/
+│   └── SourceHanSansHWSC-Bold.otf
+├── requirements.txt
+└── README.md
 ```
 
 ---
 
-## 📖 完整使用示例（5分钟上手）
+## 环境准备
 
 ```bash
-# 1. 克隆项目
-git clone <your-repo-url>
-cd CreatingMoviesUsingMusicAndScripts
+# 创建虚拟环境
+python3 -m venv venv
 
-# 2. 安装依赖
-pip install -r requirements.txt
-
-# 3. 准备你的音乐文件（放入 music 目录）
-cp /path/to/your/music.mp3 music/buttScaler23/
-
-# 4. 准备编排表（参考 excel/table-template.csv 格式）
-# 或使用现有 excel/butterScaler/butterScaler23.xlsx
-
-# 5. 修改脚本配置（可选）
-# 编辑 generate_video.py 顶部的 MUSIC_PATH 和 EXCEL_PATH
-
-# 6. 后台生成视频（推荐）
-nohup python generate_video.py > generate.log 2>&1 &
-
-# 7. 查看进度
-tail -f generate.log
-
-# 8. 查看生成的视频
-ls output/buttScaler23/*.mp4
-```
-
-**Excel编排表示例**（参考 `excel/table-template.csv`）：
-
-| ActionName | Type | Rhythms | StepActionName | MainHint | SubHint |
-|-----------|------|---------|----------------|---------|---------|
-| 深蹲组合 | 4 | 4 | 深蹲2次 | 双脚开立 | 与肩同宽 |
-| 深蹲组合 | 4 | 4 | 深蹲2次 | 臀部后坐 | 膝盖对准脚尖 |
-| 深蹲+弓步蹲 | 8 | 4 | 4次半程深蹲 | | |
-| 深蹲+弓步蹲 | 8 | 4 | 4次弓步蹲 | | |
-
-**字段说明**：
-- `ActionName`: 动作组名称（相同名称+Type视为一组，用于计算进度）
-- `Type`: 动作组总8拍数（2=白, 4=黄, 8=红，决定背景色）
-- `Rhythms`: 当前行占用节奏数（1节奏=2拍，标准8拍=4）
-- `StepActionName`: 每步显示的动作名（可选，同一组内每行可显示不同名称）
-- `MainHint`: 主标题（显示在屏幕上方）
-- `SubHint`: 副标题（显示在主标题下方）
-
----
-
-## 🚀 快速开始
-
-### 1. 安装依赖
-
-```bash
-pip install -r requirements.txt
-```
-
-**requirements.txt 内容：**
-```
-librosa>=0.11.0
-moviepy>=2.2.0
-pandas>=2.0.0
-openpyxl>=3.1.0
-pillow>=11.0.0
-numpy>=2.0.0
-```
-
-### 2. 准备数据
-
-将音乐文件放入 `music/` 目录，Excel编排表放入 `excel/` 目录。
-
-### 3. 生成视频（后台运行 + 日志记录）
-
-**推荐方式：后台运行，进度写入日志**
-
-```bash
-# 创建虚拟环境（如果不存在）
-  python3 -m venv venv
-
-# 激活并安装依赖
+# 激活（macOS/Linux）
 source venv/bin/activate
+
+# 安装依赖
 pip install -r requirements.txt
-
-# 方式1：基础后台运行（输出到日志文件）
-nohup python generate_video.py > generate_video.log 2>&1 &
-
-nohup python generate_ipad_v2.py > generate_ipad_v2.log 2>&1 &
-
-# 方式2：使用虚拟环境的后台运行（推荐）
-source venv/bin/activate && nohup python generate_video.py > generate_video.log 2>&1 &
-
-# 查看实时进度
-tail -f generate_video.log
-
-# 查看是否还在运行
-ps aux | grep generate_video | grep -v grep
-
-# 停止运行
-pkill -f generate_video.py
 ```
 
-### 4. 批量处理多个视频
+**requirements.txt 主要依赖：**
+- `librosa>=0.11.0` — 音频节拍分析
+- `moviepy>=2.1.0` — 视频合成
+- `pandas>=2.0.0` + `openpyxl>=3.1.0` — Excel 读取
+- `numpy`, `pillow`
 
-编辑 `generate_video.py` 或 `generate_ipad_v2.py` 顶部的 `BATCH_CONFIGS` 列表：
+---
+
+## 工作流一：followTheBeat（Excel + 音乐节拍）
+
+适用于课程编排精确到节拍的场景，如 BodyPump、莱美类团课。
+
+### 核心原理
+- 使用 `librosa` 自动检测音乐的 **BPM** 和 **节拍点**
+- 根据 Excel 中的 `Rhythms`（节奏数）自动计算每行占用的节拍时长
+- 不同 `Type` 自动分配不同背景色（白/黄/橙/红/紫/蓝/青/绿）
+- 支持倒数显示、节奏预警、NEXT 预告等功能
+
+### 可用脚本
+
+| 脚本 | 分辨率 | 使用场景 |
+|------|--------|----------|
+| `generator/followTheBeat/generate_video.py` | 1080×1920 竖屏 | 手机/抖音/视频号 |
+| `generator/followTheBeat/generate_ipad.py` | 1920×1080 横屏 | iPad / 电视横屏 |
+
+### 快速使用
+
+1. **准备音乐** 放入 `music/buttScaler23/`
+2. **准备编排表** 放入 `excel/butterScaler/`，参考 `excel/Template.xlsx`
+3. **编辑脚本配置**（`generator/followTheBeat/generate_xxx.py` 顶部的 `BATCH_CONFIGS`）
 
 ```python
 BATCH_CONFIGS = [
-    {"music": "music/section1.mp3", "excel": "excel/config.xlsx", "output": "video1.mp4"},
-    {"music": "music/section2.mp3", "excel": "excel/config.xlsx", "output": "video2.mp4"},
-    {"music": "music/section3.mp3", "excel": "excel/config.xlsx", "output": "video3.mp4"},
+    {
+        "music": "../../music/buttScaler23/02 02 ONE MORE TIME.mp3",
+        "excel": "../../excel/butterScaler/butterScaler23-Section02.xlsx",
+        "output": "butterScaler23_Section02_iPad.mp4"
+    },
 ]
 ```
 
-脚本会按顺序依次处理每个配置，一次处理一个。
-
-### 5. 使用临时文件快速预览
-
-将音乐命名为 `temp-audio.m4a`，Excel命名为 `temp-excel.xlsx` 放在项目根目录：
+4. **生成视频**
 
 ```bash
-# 使用临时文件（无需修改代码）
-python generate_preview.py
+cd generator/followTheBeat
 
-# 或手动指定
-cp your-music.mp3 temp-audio.m4a
-cp your-config.xlsx temp-excel.xlsx
-python generate_preview.py
+# 完整版
+python generate_ipad.py
+
+# 1 分钟预览版
+python generate_ipad.py preview
+python generate_video.py preview
 ```
 
-**生成不同版本：**
+### Excel 字段说明
+
+| 字段 | 说明 |
+|------|------|
+| `ActionName` | 动作组名称（同名称+Type视为一组） |
+| `Type` | 动作组总 8 拍数，决定背景色和进度分母（2=白, 4=黄, 8=红…） |
+| `Rhythms` | 当前行占用的节奏数（1 节奏 = 2 拍，标准 8 拍 = 4） |
+| `StepActionName` | 每步显示的动作名（可选） |
+| `MainHint` | 主提示（屏幕中上部） |
+| `SubHint` | 副提示（主提示下方） |
+| `IsPreview` | 是否为预告行（显示 NEXT 遮罩） |
+| `NextActionName` | 预告的下一个动作名 |
+| `RhythmAlert` | 是否在该行动作开始前 4 拍闪烁橙色预警 |
+
+**特殊规则**：当 `MainHint` 为纯数字且位数能被 `Rhythms` 整除时，自动进入倒数模式（如 `4321` + `Rhythms=4` 会依次显示 4→3→2→1）。
+
+---
+
+## 工作流二：followTheHint（Markdown + 音乐时间轴）
+
+适用于教练口述教学、按时间轴提示动作细节的场景。
+
+### 核心原理
+- 解析 Markdown 中的时间表和编号提示语
+- 每句提示语按 `持续时间 ÷ 行数` 自动分配显示时长
+- 大字号字幕居中偏上显示，底部显示动作名
+- 每个动作带 **秒数倒计时**
+- 动作结束前 4 秒自动预告下一个动作
+- 音乐剩余时间自动显示 `Be Happy` + 笑脸
+
+### 快速使用
+
+1. **准备音乐** 放入 `music/muscleGrowth14/`
+2. **编写 Markdown** 放入 `markdown/muscleGrowth/`，参考 `markdown/muscleGrowth/Template.md`
+
+```markdown
+# T2下肢
+
+## 音乐
+名称：T2下肢.mp3
+时长：08:01
+
+## 动作
+
+### 预先提示
+
+|开始时间|持续时间|结束时间|
+|---|---|---|
+|00:00|00:20|00:20|
+
+1. 双手拿片，双脚与髋同宽
+2. 肩部下沉，右腿往后一大步
+...
+```
+
+3. **生成视频**
 
 ```bash
-# 生成完整竖屏视频（约6-7分钟，完整课程）
-python generate_video.py
+cd generator/followTheHint
 
-# 生成1分钟预览版（竖屏，快速测试）
-python generate_preview.py
+# 完整版（默认处理 T2-下肢.md）
+python generate_hint_video.py
 
-# 生成iPad横屏版（1920x1080，大字体）
-python generate_ipad_v2.py
+# 指定其他 Markdown 文件
+python generate_hint_video.py T1-热身.md
+python generate_hint_video.py T3-上肢1.md
+
+# 1 分钟预览版
+python generate_hint_video.py preview T2-下肢.md
+```
+
+### Markdown 填写规范
+
+- `# 小节名称`：决定输出视频文件名
+- `## 音乐`：`名称` 必须和 `music/muscleGrowth14/` 下的文件名完全一致；`时长` 格式为 `mm:ss`
+- `### 动作名`：每个动作一个三级标题
+- 时间表：紧跟 `|开始时间|持续时间|结束时间|` 表格
+- 提示语：用 `1. ` ~ `n. ` 编号列表，每句最多 25 个汉字
+
+---
+
+## 后台运行与日志
+
+视频生成耗时较长（8 分钟视频约 15~20 分钟），推荐后台运行：
+
+```bash
+# followTheBeat 后台运行
+cd generator/followTheBeat
+nohup python generate_ipad.py > generate_ipad.log 2>&1 &
+
+# followTheHint 后台运行
+cd generator/followTheHint
+nohup python generate_hint_video.py T2-下肢.md > generate_hint.log 2>&1 &
+
+# 查看进度
+tail -f generate_hint.log
 ```
 
 ---
 
-## 📱 可用生成脚本
-
-| 脚本 | 用途 | 分辨率 | 时长 | 字体大小 | 使用场景 |
-|------|------|--------|------|----------|----------|
-| `generate_video.py` | 完整课程 | 1080×1920竖屏 | 完整音乐 | 主80px/副50px | 手机/抖音/视频号 |
-| `generate_preview.py` | 快速预览 | 1080×1920竖屏 | 前1分钟(16个8拍) | 主60px/副40px | 快速测试效果 |
-| `generate_ipad_v2.py` | iPad横屏 | 1920×1080横屏 | 前1分钟(16个8拍) | 主80px/副50px | iPad横屏全屏播放 |
-
-**自定义修改：**
-编辑脚本顶部的配置区域：
-```python
-MUSIC_PATH = "music/buttScaler23/06 06 Lose Control.mp3"
-EXCEL_PATH = "excel/butterScaler/butterScaler23.xlsx"
-FONT_PATH = "fonts/SourceHanSansHWSC-Bold.otf"
-MAX_8BEATS = 16  # 只生成前N个8拍（预览用）
-```
-
----
-
-## 📝 Excel字段说明
-
-| 字段名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| **ActionName** | 字符串 | ✅ | 动作组名称（同名称+Type视为一组） |
-| **Type** | 整数 | ✅ | 动作组总8拍数（2=白,4=黄,8=红,决定背景色） |
-| **Rhythms** | 整数 | ✅ | 当前行占用节奏数（1节奏=2拍，标准8拍=4） |
-| **StepActionName** | 字符串 | 可选 | 每步显示的动作名（不影响Type计数） |
-| **MainHint** | 字符串 | 可选 | 主标题/口令 |
-| **SubHint** | 字符串 | 可选 | 副标题/细节提示 |
-| **IsPreview** | 布尔 | 可选 | 是否为预告行（显示NEXT字样） |
-| **NextActionName** | 字符串 | 条件 | IsPreview=TRUE时必填，下一个动作名 |
-| **RhythmAlert** | 布尔 | 可选 | 是否在该行开始前4拍闪烁橙色预警 |
-
-**详细文档**：参见 [Excel编排表字段规范](#excel编排表字段规范详细版) 章节。
-
----
-
-## 🛠️ 故障排除
+## 故障排除
 
 | 问题 | 解决方案 |
-|-----|---------|
-| `RuntimeError: No ffmpeg exe` | 安装ffmpeg: `brew install ffmpeg` (Mac) 或加入系统PATH |
-| `OSError: cannot open resource` | 字体文件路径错误，检查FONT_PATH是否指向存在的文件 |
-| 字幕显示为方框/乱码 | 字体不支持中文，使用fonts目录下的思源黑体 |
-| 汉字只显示一半 | 字体渲染问题，尝试使用 `SourceHanSansSC-VF.otf` 字体 |
-| 生成视频音画不同步 | 检查音乐是否恒定BPM，librosa对变速音乐支持不佳 |
-| 后台运行后看不到进度 | 使用 `tail -f generate_video.log` 查看实时日志 |
+|------|----------|
+| `RuntimeError: No ffmpeg exe` | macOS 执行 `brew install ffmpeg` 并确保在 PATH 中 |
+| 字幕显示方框/乱码 | 使用 `fonts/` 目录下的思源黑体，不要依赖系统默认字体 |
+| 音画不同步 | 检查音乐是否为恒定 BPM，变速音乐建议手动切分或换曲 |
+| 生成速度很慢 | moviepy 本身较慢，降低分辨率或缩短时长可加速 |
+| `ModuleNotFoundError` | 确保激活了 `venv` 并执行了 `pip install -r requirements.txt` |
 
 ---
 
-## 📊 Excel编排表字段规范（详细版）
+## 许可证
 
-### 核心字段详解
-
-#### 1. Type（动作组总8拍数）
-
-**作用**：
-- 🎨 **决定背景色**：2=白, 4=黄, 6=橙, 8=红, 10=紫...
-- 📊 **决定进度分母**：显示"当前/Type"（如"2/4"）
-
-**示例**：
-```excel
-Type=4  →  进度显示 1/4, 2/4, 3/4, 4/4  →  金黄色背景
-Type=8  →  进度显示 1/8...8/8  →  大红色背景
-```
-
-#### 2. Rhythms（当前行节奏数）
-
-**计算关系**：
-- **标准8拍**：Rhythms=4（4×2拍=8拍）
-- **半个8拍**：Rhythms=2（4拍）
-
-**与Type的关系**：
-> 同组内所有行的 **Rhythms累加 ÷ 4** 应等于 **Type**
-
-**示例**：
-```excel
-ActionName=深蹲组合, Type=4
-├─ 第1行: Rhythms=4  (8拍)  →  1/4
-├─ 第2行: Rhythms=4  (8拍)  →  2/4  
-├─ 第3行: Rhythms=2  (4拍)  →  3/4
-└─ 第4行: Rhythms=6  (12拍) →  4/4
-
-验证: (4+4+2+6)/4 = 4 = Type ✅
-```
-
-#### 3. 动作名称字段
-
-| 字段 | 作用 | 使用场景 |
-|------|------|----------|
-| **ActionName** | 动作组名称（用于分组） | 同名的多行视为一组，Type决定组内8拍数 |
-| **StepActionName** | 每步显示的动作名（可选） | 同一个ActionName内，每行可显示不同的动作名，不影响Type计数 |
-
-**StepActionName 使用示例**：
-```excel
-ActionName=深蹲+弓步蹲组合, Type=8, StepActionName=4次半程深蹲
-ActionName=深蹲+弓步蹲组合, Type=8, StepActionName=4次弓步蹲
-ActionName=深蹲+弓步蹲组合, Type=8, StepActionName=4次半程深蹲
-...
-```
-显示效果：
-```
-处理: 4次半程深蹲 [1/8] (3.7s)
-处理: 4次弓步蹲 [2/8] (3.7s)
-处理: 4次半程深蹲 [3/8] (3.7s)
-...
-```
-
-#### 4. MainHint 倒数显示
-
-**触发条件**：
-- MainHint 是纯数字（如 `4321`、`3210`、`54321`）
-- 数字位数能被 Rhythms 整除
-
-**效果**：将每个数字依次显示，实现倒数效果
-
-**示例**：
-```excel
-MainHint=4321, Rhythms=4  →  依次显示: 4 → 3 → 2 → 1（每个1个rhythm）
-MainHint=432, Rhythms=6   →  依次显示: 4 → 3 → 2（每个2个rhythm）
-MainHint=4321, Rhythms=8  →  依次显示: 4 → 3 → 2 → 1（每个2个rhythm）
-```
-
-**非倒数模式**（以下情况保持原样显示）：
-- MainHint 包含非数字字符（如 "深蹲4次"）
-- 只有1位数字（如 "4"）
-- 数字位数不能被 Rhythms 整除（如 MainHint=4321, Rhythms=6）
-
-#### 4. 提示文字字段
-
-| 字段 | 显示位置 | 字体大小 | 用途 |
-|------|----------|----------|------|
-| **MainHint** | 屏幕中上部 | 主标题大小 | 主口令/节拍计数 |
-| **SubHint** | 主标题下方 | 副标题大小 | 动作细节/安全提示 |
-
-#### 5. 预告与预警字段
-
-**IsPreview + NextActionName**：
-- 触发：该行显示半透明遮罩层，提示下一个动作
-- 显示：背景变黑（40%透明度）+ "NEXT" + 下一个动作名
-
-**RhythmAlert**：
-- 触发：在该行开始前4拍，全屏闪烁橙色警告
-- 用途：动作组切换时提醒节奏变化
-
----
-
-## 完整填写示例
-
-| ActionName | Type | Rhythms | StepActionName | MainHint | SubHint | IsPreview | NextActionName | RhythmAlert |
-|-----------|------|---------|----------------|---------|---------|-----------|---------------|-------------|
-| 预先提示 | 4 | 4 | | 双脚与肩同宽 | 脚尖向前 | FALSE | | TRUE |
-| 深蹲+弓步蹲 | 8 | 4 | 4次半程深蹲 | | | FALSE | | TRUE |
-| 深蹲+弓步蹲 | 8 | 4 | 4次弓步蹲 | | | FALSE | | TRUE |
-| 深蹲+弓步蹲 | 8 | 4 | 4次半程深蹲 | | | FALSE | | TRUE |
-| 深蹲+弓步蹲 | 8 | 4 | 4次弓步蹲 | | | FALSE | | TRUE |
-
-**颜色对应**：
-- 白色背景 (Type=2)：黑色文字
-- 黄色背景 (Type=4)：黑色文字  
-- 红色背景 (Type=8)：白色文字
-- 橙色背景 (Type=6)：黑色文字
-- 紫色背景 (Type=10)：白色文字
-
----
-
-## 💡 高级用法
-
-### 批量生成多个视频
-
-编辑脚本顶部的 `BATCH_CONFIGS`：
-
-```python
-BATCH_CONFIGS = [
-    {"music": "music/section1.mp3", "excel": "excel/config1.xlsx", "output": "video1.mp4"},
-    {"music": "music/section2.mp3", "excel": "excel/config2.xlsx", "output": "video2.mp4"},
-]
-```
-
-或使用 shell 批量处理：
-```bash
-for music in music/*.mp3; do
-    filename=$(basename "$music" .mp3)
-    nohup python generate_video.py > "logs/${filename}.log" 2>&1 &
-done
-```
-
-### 自定义配置
-
-编辑脚本顶部的常量：
-```python
-# 分辨率
-VIDEO_WIDTH = 1920
-VIDEO_HEIGHT = 1080
-
-# 字体大小（iPad版）
-# MainHint=160px, SubHint=100px, ActionName=80px
-```
-
----
-
-## 🔧 当前限制与待优化
-
-1. **节拍精度**：依赖librosa的鼓点检测，对纯音乐或变速音乐可能不准
-2. **内存占用**：长视频（>10分钟）可能占用大量RAM（moviepy限制）
-3. **字体依赖**：必须手动指定字体文件路径，跨平台兼容性待改进
-4. **无音频可视化**：目前只有静态背景，没有波形或频谱可视化
-5. **字数限制**：文字大小的原因，最多支持12个汉字显示
-
-
----
-
-## 📄 许可证
-
-MIT License - 可自由修改用于商业团课视频制作。
-
----
-
-**文档版本**: v2.1  
-**更新日期**: 2026-04-09  
-**适用代码版本**: moviepy 2.2.x + librosa 0.11.x
+MIT License — 可自由修改用于商业团课视频制作。
