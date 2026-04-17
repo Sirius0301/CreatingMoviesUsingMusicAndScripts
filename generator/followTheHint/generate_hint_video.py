@@ -150,7 +150,7 @@ class HintVideoGenerator:
         lines = text.count('\n') + 1
         return TextClip(
             text=text, font_size=fontsize, color=color, font=FONT_PATH,
-            method='caption', size=(int(VIDEO_WIDTH * 0.95), int(fontsize * lines * 2.6)),
+            method='caption', size=(int(VIDEO_WIDTH * 0.95), int(fontsize * lines * 3.6)),
             text_align='center', horizontal_align='center', vertical_align='center'
         ).with_duration(duration).with_start(start).with_position(('center', VIDEO_HEIGHT * pos_y))
 
@@ -232,10 +232,23 @@ class HintVideoGenerator:
 
                     # 字幕居中偏上（占满原来 mainhint + subhint 的区域）
                     clip = self.create_text_clip(
-                        hint, fontsize=100, color=text_color,
-                        duration=hint_duration_actual, start=hint_start, pos_y=0.25
+                        hint, fontsize=150, color=text_color,
+                        duration=hint_duration_actual, start=hint_start, pos_y=0.12
                     )
                     self.clips.append(clip)
+
+            # 倒计时：对应该动作的秒数倒计时，显示在 hints 下方
+            total_seconds = int(duration_sec)
+            for sec in range(total_seconds, 0, -1):
+                countdown_start = start_sec + (total_seconds - sec)
+                countdown_duration = min(1.0, end_sec - countdown_start)
+                if countdown_duration <= 0:
+                    break
+                countdown_clip = self.create_text_clip(
+                    str(sec), fontsize=120, color=text_color,
+                    duration=countdown_duration, start=countdown_start, pos_y=0.45
+                )
+                self.clips.append(countdown_clip)
 
             # 动作名称显示在底部
             action_name_clip = self.create_text_clip(
@@ -283,8 +296,16 @@ class HintVideoGenerator:
 
 
 def main():
-    preview = 'preview' in sys.argv[1:]
-    md_file = "T2-下肢.md"
+    args = sys.argv[1:]
+    preview = 'preview' in args
+    # 过滤 preview 后找 md 文件名
+    remaining = [a for a in args if a != 'preview']
+    if remaining:
+        md_file = remaining[0]
+        if not md_file.endswith('.md'):
+            md_file += '.md'
+    else:
+        md_file = "T2-下肢.md"
     md_path = os.path.join(MARKDOWN_DIR, md_file)
 
     if not os.path.exists(md_path):
