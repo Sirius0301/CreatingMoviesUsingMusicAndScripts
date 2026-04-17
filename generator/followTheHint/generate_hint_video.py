@@ -221,6 +221,13 @@ class HintVideoGenerator:
             # 字幕：平均分配时间
             hints = action['hints']
             if hints:
+                MIN_HINT_DURATION = 2.5
+                # 如果时长不足，减少显示条数，保证每条至少 2.5 秒
+                if duration_sec < len(hints) * MIN_HINT_DURATION:
+                    show_count = max(1, int(duration_sec // MIN_HINT_DURATION))
+                    hints = hints[:show_count]
+                    print(f"    提示: 时长 {duration_sec:.1f}s 较短，仅显示前 {len(hints)} 条字幕")
+
                 hint_duration = duration_sec / len(hints)
                 for idx, hint in enumerate(hints):
                     hint_start = start_sec + idx * hint_duration
